@@ -1,0 +1,550 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model DriverOffer {
+  id        String      @id
+  rideId    String
+  driverId  String
+  status    OfferStatus
+  expiresAt DateTime
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  User      User        @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  Ride      Ride        @relation(fields: [rideId], references: [id], onDelete: Cascade)
+
+  @@index([driverId])
+  @@index([expiresAt])
+  @@index([rideId])
+  @@index([status])
+}
+
+model Reservation {
+  id            String            @id
+  tenantId      String
+  passengerId   String
+  terminalId    String
+  boardingTime  DateTime
+  status        ReservationStatus
+  queuePosition Int
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  User          User              @relation(fields: [passengerId], references: [id], onDelete: Cascade)
+  Tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  TODATerminal  TODATerminal      @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+
+  @@index([passengerId])
+  @@index([status])
+  @@index([tenantId])
+  @@index([terminalId])
+}
+
+model Ride {
+  id                          String        @id
+  tenantId                    String
+  passengerId                 String
+  driverId                    String?
+  terminalId                  String?
+  pickupLocation              String
+  dropoffLocation             String
+  pickupLatitude              Float
+  pickupLongitude             Float
+  dropoffLatitude             Float
+  dropoffLongitude            Float
+  status                      RideStatus
+  fare                        Float
+  distance                    Float
+  estimatedDuration           Int
+  actualDuration              Int?
+  rideType                    String
+  driverLatitude              Float?
+  driverLongitude             Float?
+  createdAt                   DateTime      @default(now())
+  startedAt                   DateTime?
+  completedAt                 DateTime?
+  updatedAt                   DateTime      @updatedAt
+  DriverOffer                 DriverOffer[]
+  Feedback                    RideFeedback[]
+  User_Ride_driverIdToUser    User?         @relation("Ride_driverIdToUser", fields: [driverId], references: [id])
+  User_Ride_passengerIdToUser User          @relation("Ride_passengerIdToUser", fields: [passengerId], references: [id], onDelete: Cascade)
+  TODATerminal                TODATerminal? @relation(fields: [terminalId], references: [id], onDelete: SetNull)
+  Tenant                      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([driverId])
+  @@index([passengerId])
+  @@index([status])
+  @@index([terminalId])
+  @@index([tenantId])
+}
+
+model TODATerminal {
+  id            String        @id
+  name          String
+  location      String
+  tenantId      String
+  latitude      Float
+  longitude     Float
+  capacity      Int
+  currentQueued Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  Reservation   Reservation[]
+  Ride          Ride[]
+  DriverProfile DriverProfile[]
+  Tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model DriverPresence {
+  driverId        String   @id
+  tenantId        String
+  isOnline        Boolean  @default(false)
+  latitude        Float?
+  longitude       Float?
+  heading         Float?
+  accuracy        Float?
+  onlineSinceAt   DateTime?
+  lastHeartbeatAt DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  User            User     @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  Tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, isOnline, lastHeartbeatAt])
+  @@index([tenantId, isOnline, onlineSinceAt])
+  @@index([latitude, longitude])
+}
+
+model Tenant {
+  id             String          @id
+  name           String
+  lguCode        String          @unique
+  lguName        String
+  lguType        TenantLGUType
+  psgcCode       String          @unique
+  psgcType       TenantPSGCType  @default(province)
+  provinceCode   String?
+  provinceName   String?
+  regionCode     String?
+  regionName     String?
+  status         TenantStatus    @default(active)
+  suspendedAt    DateTime?
+  suspensionReason String?
+  logo           String          @default("/mobility-logo.png")
+  logoUrl        String          @default("/mobility-logo.png")
+  primaryColor   String?
+  accentColor    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  Reservation    Reservation[]
+  Ride           Ride[]
+  Settings       TenantSettings?
+  TODATerminal   TODATerminal[]
+  DriverPresence DriverPresence[]
+  DriverProfile   DriverProfile[]
+  PlatformAuditLogs PlatformAuditLog[]
+  SupportAccessLogs SupportAccessLog[]
+  TenantAuditLogs TenantAuditLog[]
+  TenantMembership TenantMembership[]
+  TransportModules TenantTransportModule[]
+  TenantRole       TenantRole[]
+  User           User[]
+
+  @@index([regionCode])
+  @@index([provinceCode])
+}
+
+model TenantTransportModule {
+  id         String             @id
+  tenantId    String
+  moduleKey   TransportModuleKey
+  isEnabled   Boolean           @default(false)
+  isDefault   Boolean           @default(false)
+  sortOrder   Int               @default(0)
+  configJson  Json?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  Tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, moduleKey])
+  @@index([tenantId, isEnabled, sortOrder])
+  @@index([tenantId, isDefault])
+}
+
+model User {
+  id                          String        @id
+  supabaseId                  String?       @unique
+  name                        String
+  email                       String?
+  phone                       String?       @unique
+  phoneE164                   String?       @unique
+  emergencyContactName        String?
+  emergencyContactPhone       String?
+  termsAcceptedAt             DateTime?
+  role                        UserRole
+  isDriverVerified            Boolean       @default(false)
+  isDriverRestricted          Boolean       @default(false)
+  driverRestrictionReason     String?
+  driverRestrictedAt          DateTime?
+  tenantId                    String?
+  mustResetPassword           Boolean       @default(false)
+  avatar                      String?
+  rating                      Float?
+  completedRides              Int?          @default(0)
+  balance                     Float?        @default(0)
+  bankAccount                 String?
+  createdAt                   DateTime      @default(now())
+  updatedAt                   DateTime      @updatedAt
+  DriverOffer                 DriverOffer[]
+  DriverDocumentsReviewed     DriverDocument[]           @relation("DriverDocument_reviewedByUser")
+  DriverProfile               DriverProfile?
+  FeedbackReceived            RideFeedback[]             @relation("RideFeedback_subjectUser")
+  FeedbackWritten             RideFeedback[]             @relation("RideFeedback_reviewerUser")
+  PlatformAuditLogs           PlatformAuditLog[]         @relation("PlatformAuditLog_actorUser")
+  DriverRestrictionLogs       DriverRestrictionLog[]     @relation("DriverRestrictionLog_actedByUser")
+  SupportAccessLogs           SupportAccessLog[]         @relation("SupportAccessLog_superAdminUser")
+  TenantAuditLogs             TenantAuditLog[]           @relation("TenantAuditLog_actorUser")
+  DriverVerificationReviews   DriverVerificationReview[] @relation("DriverVerificationReview_reviewedByUser")
+  InvitedTenantMemberships    TenantMembership[] @relation("TenantMembership_invitedByUser")
+  Reservation                 Reservation[]
+  Ride_Ride_driverIdToUser    Ride[]        @relation("Ride_driverIdToUser")
+  Ride_Ride_passengerIdToUser Ride[]        @relation("Ride_passengerIdToUser")
+  DriverPresence              DriverPresence?
+  TenantMemberships           TenantMembership[] @relation("TenantMembership_user")
+  Tenant                      Tenant?       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([phone])
+  @@index([phoneE164])
+  @@index([role])
+  @@index([supabaseId])
+  @@index([tenantId])
+}
+
+model RideFeedback {
+  id             String   @id
+  rideId         String
+  reviewerUserId String
+  subjectUserId  String
+  rating         Int
+  note           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  Reviewer       User     @relation("RideFeedback_reviewerUser", fields: [reviewerUserId], references: [id], onDelete: Cascade)
+  Ride           Ride     @relation(fields: [rideId], references: [id], onDelete: Cascade)
+  Subject        User     @relation("RideFeedback_subjectUser", fields: [subjectUserId], references: [id], onDelete: Cascade)
+
+  @@unique([rideId, reviewerUserId])
+  @@index([reviewerUserId, createdAt])
+  @@index([subjectUserId, createdAt])
+  @@index([rideId])
+}
+
+model TenantMembership {
+  id              String     @id
+  userId          String
+  tenantId        String
+  tenantRoleId    String
+  isActive        Boolean    @default(true)
+  invitedByUserId String?
+  deactivatedAt   DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  InvitedByUser   User?      @relation("TenantMembership_invitedByUser", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+  Tenant          Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  TenantRole      TenantRole @relation(fields: [tenantRoleId], references: [id], onDelete: Restrict)
+  User            User       @relation("TenantMembership_user", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId])
+  @@index([tenantId, isActive])
+  @@index([tenantRoleId])
+  @@index([invitedByUserId])
+}
+
+model DriverProfile {
+  id                       String                     @id
+  userId                   String                     @unique
+  tenantId                 String
+  todaId                   String?
+  operationalState         DriverOperationalState     @default(pending_review)
+  verificationStatus       DriverVerificationStatus   @default(pending)
+  restrictionStatus        DriverRestrictionStatus    @default(unrestricted)
+  contactEmail             String?
+  contactPhone             String?
+  legalFullName            String?
+  dateOfBirth              DateTime?
+  homeAddress              String?
+  todaMembershipId         String?
+  licenseNumber            String?
+  licenseExpiry            DateTime?
+  vehicleType              String?
+  plateNumber              String?
+  vehicleModel             String?
+  vehicleColor             String?
+  verificationApprovedAt   DateTime?
+  lastVerificationReviewAt DateTime?
+  restrictedAt             DateTime?
+  currentRestrictionReason String?
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime                   @updatedAt
+  DriverDocuments          DriverDocument[]
+  RestrictionLogs          DriverRestrictionLog[]
+  TODATerminal             TODATerminal?              @relation(fields: [todaId], references: [id], onDelete: SetNull)
+  Tenant                   Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  User                     User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  VerificationReviews      DriverVerificationReview[]
+
+  @@index([tenantId, operationalState])
+  @@index([tenantId, verificationStatus])
+  @@index([tenantId, restrictionStatus])
+  @@index([todaId])
+}
+
+model DriverDocument {
+  id               String               @id
+  driverProfileId  String
+  documentType     DriverDocumentType
+  fileUrl          String?
+  storageRef       String?
+  reviewStatus     DriverDocumentReviewStatus @default(submitted)
+  metadata         Json?
+  submittedAt      DateTime             @default(now())
+  reviewedAt       DateTime?
+  reviewedByUserId String?
+  remarks          String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  DriverProfile    DriverProfile        @relation(fields: [driverProfileId], references: [id], onDelete: Cascade)
+  ReviewedByUser   User?                @relation("DriverDocument_reviewedByUser", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([driverProfileId, reviewStatus])
+  @@index([documentType])
+  @@index([reviewedByUserId])
+}
+
+model DriverVerificationReview {
+  id               String                           @id
+  driverProfileId  String
+  decision         DriverVerificationDecision
+  reviewedByUserId String?
+  remarks          String?
+  createdAt        DateTime                         @default(now())
+  DriverProfile    DriverProfile                    @relation(fields: [driverProfileId], references: [id], onDelete: Cascade)
+  ReviewedByUser   User?                            @relation("DriverVerificationReview_reviewedByUser", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([driverProfileId, createdAt])
+  @@index([reviewedByUserId])
+}
+
+model DriverRestrictionLog {
+  id               String                  @id
+  driverProfileId  String
+  action           DriverRestrictionAction
+  actedByUserId    String?
+  reason           String?
+  createdAt        DateTime                @default(now())
+  DriverProfile    DriverProfile           @relation(fields: [driverProfileId], references: [id], onDelete: Cascade)
+  ActedByUser      User?                   @relation("DriverRestrictionLog_actedByUser", fields: [actedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([driverProfileId, createdAt])
+  @@index([actedByUserId])
+}
+
+model TenantRole {
+  id                   String                 @id
+  tenantId             String?
+  key                  String                 @unique
+  name                 String
+  description          String?
+  scope                TenantRoleScope        @default(tenant)
+  isSystem             Boolean                @default(false)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  Tenant               Tenant?                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  TenantMemberships    TenantMembership[]
+  TenantRolePermission TenantRolePermission[]
+
+  @@index([tenantId])
+  @@index([scope])
+}
+
+model TenantRolePermission {
+  id            String     @id
+  tenantRoleId  String
+  permissionKey String
+  createdAt     DateTime   @default(now())
+  TenantRole    TenantRole @relation(fields: [tenantRoleId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantRoleId, permissionKey])
+  @@index([permissionKey])
+}
+
+model TenantSettings {
+  id                    String   @id
+  tenantId              String   @unique
+  branding              Json
+  moduleVisibility      Json
+  operationsPreferences Json
+  reportingPreferences  Json
+  uiPreferences         Json
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  Tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model TenantAuditLog {
+  id          String   @id
+  tenantId    String
+  actorUserId String?
+  module      String
+  action      String
+  targetType  String
+  targetId    String?
+  beforeJson  Json?
+  afterJson   Json?
+  createdAt   DateTime @default(now())
+  ActorUser   User?    @relation("TenantAuditLog_actorUser", fields: [actorUserId], references: [id], onDelete: SetNull)
+  Tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, module, createdAt])
+  @@index([actorUserId])
+}
+
+model SupportAccessLog {
+  id               String   @id
+  tenantId         String
+  superAdminUserId String
+  accessType       String
+  reason           String
+  createdAt        DateTime @default(now())
+  SuperAdminUser   User     @relation("SupportAccessLog_superAdminUser", fields: [superAdminUserId], references: [id], onDelete: Cascade)
+  Tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([superAdminUserId, createdAt])
+}
+
+model PlatformAuditLog {
+  id          String   @id
+  actorUserId String
+  tenantId    String?
+  module      String
+  action      String
+  targetType  String
+  targetId    String?
+  reason      String
+  beforeJson  Json?
+  afterJson   Json?
+  createdAt   DateTime @default(now())
+  ActorUser   User     @relation("PlatformAuditLog_actorUser", fields: [actorUserId], references: [id], onDelete: Cascade)
+  Tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([tenantId, createdAt])
+  @@index([module, createdAt])
+}
+
+enum OfferStatus {
+  pending
+  accepted
+  rejected
+  expired
+}
+
+enum ReservationStatus {
+  pending
+  confirmed
+  arrived
+  completed
+  cancelled
+}
+
+enum RideStatus {
+  searching
+  matched
+  en_route
+  arrived
+  in_trip
+  completed
+  cancelled
+}
+
+enum UserRole {
+  passenger
+  driver
+  admin
+  superadmin
+}
+
+enum TransportModuleKey {
+  tricycle
+  jeepney
+}
+
+enum TenantStatus {
+  active
+  suspended
+}
+
+enum TenantRoleScope {
+  tenant
+}
+
+enum DriverOperationalState {
+  pending_review
+  offline
+  online
+  restricted
+}
+
+enum DriverVerificationStatus {
+  pending
+  verified
+}
+
+enum DriverRestrictionStatus {
+  unrestricted
+  restricted
+}
+
+enum DriverDocumentType {
+  drivers_license
+  toda_membership
+  vehicle_registration
+  government_id
+  proof_of_address
+  other
+}
+
+enum DriverDocumentReviewStatus {
+  submitted
+  approved
+  rejected
+}
+
+enum DriverVerificationDecision {
+  approved
+  rejected
+}
+
+enum DriverRestrictionAction {
+  restricted
+  reinstated
+}
+
+enum TenantPSGCType {
+  province
+  city_municipality
+}
+
+enum TenantLGUType {
+  province
+  city
+  municipality
+}

@@ -1,0 +1,52 @@
+{
+  "name": "Mobility Driver",
+  "short_name": "Mobility Driver",
+  "description": "Driver app for onboarding, verification, and operational trip access.",
+  "start_url": "/driver",
+  "scope": "/driver",
+  "display": "standalone",
+  "background_color": "#F0FDFA",
+  "theme_color": "#0F766E",
+  "orientation": "portrait",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icon-light-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Apply as driver",
+      "short_name": "Apply",
+      "description": "Start driver registration.",
+      "url": "/driver/signup",
+      "icons": [
+        {
+          "src": "/icon-light-32x32.png",
+          "sizes": "32x32",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Driver login",
+      "short_name": "Login",
+      "description": "Open driver login.",
+      "url": "/driver/login",
+      "icons": [
+        {
+          "src": "/icon-light-32x32.png",
+          "sizes": "32x32",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

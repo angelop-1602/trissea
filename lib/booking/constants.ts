@@ -1,0 +1,11 @@
+export const BOOKING_FARE = {
+  BASE_FARE: 35,
+  PER_KM: 12,
+  PER_MINUTE: 1.5,
+} as const;
+
+export const DRIVER_HEARTBEAT_MAX_AGE_SECONDS = 45;
+export const DRIVER_HEARTBEAT_MIN_INTERVAL_SECONDS = 6;
+export const DRIVER_STALE_CLEANUP_INTERVAL_SECONDS = 60;
+
+export const SSE_KEEPALIVE_MS = 20000;

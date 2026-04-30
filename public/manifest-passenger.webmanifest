@@ -1,0 +1,52 @@
+{
+  "name": "Mobility Passenger",
+  "short_name": "Mobility Passenger",
+  "description": "Passenger app for booking trips, managing reservations, and tracking ride activity.",
+  "start_url": "/passenger",
+  "scope": "/passenger",
+  "display": "standalone",
+  "background_color": "#F0FDFA",
+  "theme_color": "#0F766E",
+  "orientation": "portrait",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icon-light-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Create passenger account",
+      "short_name": "Sign up",
+      "description": "Start passenger registration.",
+      "url": "/passenger/signup",
+      "icons": [
+        {
+          "src": "/icon-light-32x32.png",
+          "sizes": "32x32",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Passenger login",
+      "short_name": "Login",
+      "description": "Open passenger login.",
+      "url": "/passenger/login",
+      "icons": [
+        {
+          "src": "/icon-light-32x32.png",
+          "sizes": "32x32",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}
