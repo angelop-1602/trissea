@@ -5,8 +5,8 @@ import { Pool } from 'pg';
 import { ensureProductionRuntimeEnv } from '@/lib/env-config';
 
 const globalForPrisma = globalThis as unknown as {
-  __mobilityPrismaPool: Pool | undefined;
-  __mobilityPrisma: PrismaClient | undefined;
+  __trisseaPrismaPool: Pool | undefined;
+  __trisseaPrisma: PrismaClient | undefined;
 };
 
 function hasExpectedDelegates(client: PrismaClient) {
@@ -29,18 +29,18 @@ export function getPrisma() {
     throw new Error('Missing environment variable: DATABASE_URL');
   }
 
-  if (!globalForPrisma.__mobilityPrismaPool) {
-    globalForPrisma.__mobilityPrismaPool = new Pool({ connectionString });
+  if (!globalForPrisma.__trisseaPrismaPool) {
+    globalForPrisma.__trisseaPrismaPool = new Pool({ connectionString });
   }
 
-  if (!globalForPrisma.__mobilityPrisma || !hasExpectedDelegates(globalForPrisma.__mobilityPrisma)) {
-    const adapter = new PrismaPg(globalForPrisma.__mobilityPrismaPool);
-    globalForPrisma.__mobilityPrisma = new PrismaClient({
+  if (!globalForPrisma.__trisseaPrisma || !hasExpectedDelegates(globalForPrisma.__trisseaPrisma)) {
+    const adapter = new PrismaPg(globalForPrisma.__trisseaPrismaPool);
+    globalForPrisma.__trisseaPrisma = new PrismaClient({
       adapter,
       log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
     });
   }
 
-  return globalForPrisma.__mobilityPrisma;
+  return globalForPrisma.__trisseaPrisma;
 }
 

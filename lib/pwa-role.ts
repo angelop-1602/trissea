@@ -1,4 +1,4 @@
-export const PWA_ROLE_STORAGE_KEY = 'mobility:pwa-role';
+export const PWA_ROLE_STORAGE_KEY = 'trissea:pwa-role';
 
 export const PWA_ROLE_LANDING_ROUTES = {
   passenger: '/passenger',

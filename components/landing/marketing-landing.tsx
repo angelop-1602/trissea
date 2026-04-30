@@ -33,7 +33,7 @@ const trustIcons = [LockKeyhole, BadgeCheck, ShieldCheck, Smartphone] as const;
 
 const heroBackdropStyle = {
   backgroundImage:
-    'radial-gradient(circle at 18% 18%, rgba(3, 105, 161, 0.18), transparent 32%), radial-gradient(circle at 84% 10%, rgba(15, 118, 110, 0.18), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 72%)',
+    'radial-gradient(circle at 18% 18%, rgba(20, 98, 46, 0.16), transparent 32%), radial-gradient(circle at 84% 10%, rgba(254, 204, 4, 0.18), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 72%)',
 };
 
 export function MarketingLanding() {
@@ -114,7 +114,7 @@ export function MarketingLanding() {
               </div>
               <div className="leading-tight">
                 <p className="text-sm font-black tracking-[0.18em] text-foreground">{BRAND_NAME}</p>
-                <p className="hidden text-xs font-medium text-muted-foreground sm:block">Mobility platform</p>
+                <p className="hidden text-xs font-medium text-muted-foreground sm:block">Tuguegarao tricycle app</p>
               </div>
             </Link>
           </div>

@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-const DRIVER_DUTY_EVENT = 'mobility:driver-duty-intent';
+const DRIVER_DUTY_EVENT = 'trissea:driver-duty-intent';
 
 function getDriverDutyStorageKey(driverId: string) {
-  return `mobility:driver-duty:${driverId}`;
+  return `trissea:driver-duty:${driverId}`;
 }
 
 function readDriverDutyIntent(storageKey: string) {

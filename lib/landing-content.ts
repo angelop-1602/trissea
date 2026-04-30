@@ -7,9 +7,9 @@ export const LANDING_PRIMARY_CTA = {
 
 export const LANDING_HERO = {
   eyebrow: PLATFORM_NAME,
-  headline: `Book local rides faster with ${BRAND_NAME}`,
+  headline: BRAND_NAME,
   subheadline:
-    'Choose the Passenger app to book rides, track queue updates, and follow trips live, or the Driver app to go on duty, manage assignments, and stay on top of daily work.',
+    'Book tricycle rides in Tuguegarao City, follow queue updates, and help drivers stay ready for daily TODA operations.',
 } as const;
 
 export const LANDING_BENEFITS = [

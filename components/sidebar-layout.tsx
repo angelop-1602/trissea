@@ -16,6 +16,7 @@ import { useStore } from '@/lib/store-context';
 import { cn } from '@/lib/utils';
 import { getAuthEntryRouteForCurrentUser } from '@/lib/role-routes';
 import { hasModuleHub as tenantHasModuleHub } from '@/lib/transport-modules';
+import { getPlatformThemeVariables, getTenantThemeVariables } from '@/lib/theme/tenant-theme';
 
 interface SidebarLayoutProps {
   children: ReactNode;
@@ -258,6 +259,9 @@ export function SidebarLayout({ children, items, title, activeHref }: SidebarLay
         ? `${currentTenant.name} tenant workspace`
         : 'Tenant workspace';
     const displayName = isSuperadminArea ? PLATFORM_NAME : branding.displayName ?? BRAND_NAME;
+    const themeStyle = isSuperadminArea
+      ? getPlatformThemeVariables()
+      : getTenantThemeVariables(branding, 'tenant');
 
     return (
       <AdminAppShell
@@ -272,6 +276,7 @@ export function SidebarLayout({ children, items, title, activeHref }: SidebarLay
         activeLabel={activeLabel}
         displayName={displayName}
         logo={isSuperadminArea ? DEFAULT_BRAND_LOGO_PATH : branding.logo}
+        themeStyle={themeStyle}
         onLogout={handleLogout}
       >
         {children}

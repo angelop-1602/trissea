@@ -6,6 +6,12 @@ import { bookingError, bookingErrorResponse, bookingSuccess, getRequestIdFromHea
 import { createPlatformAuditLog, AUDIT_MODULES } from '@/lib/audit-log';
 import { DEFAULT_BRAND_LOGO_PATH } from '@/lib/brand';
 import { listPlatformTenantsData } from '@/lib/dashboard/platform-control';
+import {
+  DEFAULT_ACCENT_HEX,
+  DEFAULT_BACKGROUND_HEX,
+  DEFAULT_FOREGROUND_HEX,
+  DEFAULT_PRIMARY_HEX,
+} from '@/lib/theme/constants';
 import { createSupabaseAdminClient } from '@/lib/supabase/server';
 import { getPSGCLGUByCode } from '@/lib/psgc';
 import { requireSuperadmin } from '@/lib/superadmin-access';
@@ -140,7 +146,7 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date();
-    const adminPassword = `mobility@${now.getFullYear()}`;
+    const adminPassword = `trissea@${now.getFullYear()}`;
     const slug = toSlug(selectedLgu.name);
     const adminEmail = `admin.${slug}.${selectedLgu.code}@${adminEmailDomain()}`;
 
@@ -161,6 +167,11 @@ export async function POST(request: NextRequest) {
         regionName: selectedLgu.regionName,
         logo: DEFAULT_BRAND_LOGO_PATH,
         logoUrl: DEFAULT_BRAND_LOGO_PATH,
+        faviconUrl: '/trissea-icon-32.png',
+        primaryColor: DEFAULT_PRIMARY_HEX,
+        accentColor: DEFAULT_ACCENT_HEX,
+        backgroundColor: DEFAULT_BACKGROUND_HEX,
+        foregroundColor: DEFAULT_FOREGROUND_HEX,
       },
     });
     await ensureTenantTransportModules(prisma, tenant);

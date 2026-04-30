@@ -6,44 +6,55 @@ import { buildDefaultTenantSettings, normalizeTenantSettings } from '@/lib/tenan
 test('default tenant settings include on-demand fare controls', () => {
   const settings = buildDefaultTenantSettings();
 
-  assert.equal(settings.branding.logoUrl, '/mobility-logo.png');
-  assert.equal(settings.branding.primaryColor, '#0F766E');
-  assert.equal(settings.branding.accentColor, '#0369A1');
+  assert.equal(settings.branding.logoUrl, '/trissea-logo.png');
+  assert.equal(settings.branding.faviconUrl, '/trissea-icon-32.png');
+  assert.equal(settings.branding.primaryColor, '#14622e');
+  assert.equal(settings.branding.accentColor, '#fecc04');
+  assert.equal(settings.branding.backgroundColor, '#f5f9f7');
+  assert.equal(settings.branding.foregroundColor, '#0f1f16');
   assert.equal(settings.operationsPreferences.onDemandFare.baseFare, 35);
   assert.equal(settings.operationsPreferences.onDemandFare.perKmFare, 12);
   assert.equal(settings.operationsPreferences.onDemandFare.perMinuteFare, 1.5);
   assert.deepEqual(settings.operationsPreferences.onDemandFare.terminalAdjustments, []);
 });
 
-test('default tenant branding normalizes previous Mobility defaults without overriding custom logos', () => {
-  const pngDefault = buildDefaultTenantSettings({
+test('default tenant branding uses TRISSEA fallbacks without overriding custom logos', () => {
+  const fallbackBranding = buildDefaultTenantSettings({
     id: 'tenant-1',
-    name: 'Mobility Tenant',
-    logo: '/mobility-logo.png',
-    logoUrl: '/mobility-logo.png',
+    name: 'TRISSEA Tenant',
+    logo: '',
+    logoUrl: '',
     primaryColor: null,
     accentColor: null,
-  });
-  const previousMobilityDefault = buildDefaultTenantSettings({
-    id: 'tenant-3',
-    name: 'Previous Mobility Tenant',
-    logo: '/mobility-logo.svg',
-    logoUrl: '/mobility-logo.svg',
-    primaryColor: null,
-    accentColor: null,
+    backgroundColor: null,
+    foregroundColor: null,
+    driverPrimaryColor: null,
+    driverAccentColor: null,
+    driverBackgroundColor: null,
+    driverForegroundColor: null,
+    faviconUrl: null,
   });
   const customLogo = buildDefaultTenantSettings({
     id: 'tenant-2',
     name: 'Custom Tenant',
     logo: '/custom-logo.svg',
     logoUrl: '/custom-logo.svg',
-    primaryColor: null,
-    accentColor: null,
+    primaryColor: '#123456',
+    accentColor: '#abcdef',
+    backgroundColor: '#fafafa',
+    foregroundColor: '#111111',
+    driverPrimaryColor: '#234567',
+    driverAccentColor: '#fedcba',
+    driverBackgroundColor: '#f7f7f7',
+    driverForegroundColor: '#222222',
+    faviconUrl: '/custom-favicon.png',
   });
 
-  assert.equal(pngDefault.branding.logoUrl, '/mobility-logo.png');
-  assert.equal(previousMobilityDefault.branding.logoUrl, '/mobility-logo.png');
+  assert.equal(fallbackBranding.branding.logoUrl, '/trissea-logo.png');
+  assert.equal(fallbackBranding.branding.primaryColor, '#14622e');
   assert.equal(customLogo.branding.logoUrl, '/custom-logo.svg');
+  assert.equal(customLogo.branding.primaryColor, '#123456');
+  assert.equal(customLogo.branding.driverAccentColor, '#fedcba');
 });
 
 test('tenant settings normalize custom on-demand fare values and terminal adjustments', () => {

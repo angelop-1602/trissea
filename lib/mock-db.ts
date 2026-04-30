@@ -126,7 +126,7 @@ const tenants: Tenant[] = [
   },
   {
     id: 'tenant-cebu',
-    name: 'Cebu Mobility Solutions',
+    name: 'Cebu TRISSEA Services',
     regionId: 'region-2',
   },
 ];

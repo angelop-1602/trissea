@@ -19,12 +19,12 @@ export interface RateLimitResult {
 }
 
 const globalForRateLimit = globalThis as unknown as {
-  __mobilityRateLimitStore: Map<string, BucketEntry> | undefined;
-  __mobilityRateLimitLastPruneAt: number | undefined;
+  __trisseaRateLimitStore: Map<string, BucketEntry> | undefined;
+  __trisseaRateLimitLastPruneAt: number | undefined;
 };
 
 const rateLimitStore =
-  globalForRateLimit.__mobilityRateLimitStore ?? (globalForRateLimit.__mobilityRateLimitStore = new Map());
+  globalForRateLimit.__trisseaRateLimitStore ?? (globalForRateLimit.__trisseaRateLimitStore = new Map());
 
 type RedisConfig = {
   url: string;
@@ -43,7 +43,7 @@ function getRedisConfig(): RedisConfig | null {
 }
 
 function pruneExpiredBuckets(now: number) {
-  const lastPruneAt = globalForRateLimit.__mobilityRateLimitLastPruneAt ?? 0;
+  const lastPruneAt = globalForRateLimit.__trisseaRateLimitLastPruneAt ?? 0;
   if (now - lastPruneAt < 60_000) {
     return;
   }
@@ -54,7 +54,7 @@ function pruneExpiredBuckets(now: number) {
     }
   }
 
-  globalForRateLimit.__mobilityRateLimitLastPruneAt = now;
+  globalForRateLimit.__trisseaRateLimitLastPruneAt = now;
 }
 
 export function resolveClientIp(request: NextRequest): string {
@@ -122,7 +122,7 @@ async function checkRateLimitInRedis(
 ): Promise<RateLimitResult> {
   const { key, limit, windowMs } = options;
   const now = Date.now();
-  const redisKey = `mobility:rate-limit:${key}`;
+  const redisKey = `trissea:rate-limit:${key}`;
 
   const response = await fetch(`${config.url}/pipeline`, {
     method: 'POST',

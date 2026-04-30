@@ -7,7 +7,7 @@ export interface RideFeedbackPrompt {
   role: 'passenger' | 'driver';
 }
 
-const RIDE_FEEDBACK_PROMPT_KEY = 'mobility:ride-feedback-prompt';
+const RIDE_FEEDBACK_PROMPT_KEY = 'trissea:ride-feedback-prompt';
 
 export function writeRideFeedbackPrompt(prompt: RideFeedbackPrompt) {
   if (typeof window === 'undefined') {

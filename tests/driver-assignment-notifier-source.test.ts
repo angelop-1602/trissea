@@ -15,5 +15,5 @@ test('driver assignment notifier listens for assigned ride updates', () => {
   assert.match(notifierSource, /useBookingRealtime/);
   assert.match(notifierSource, /payload\.type === 'ride\.updated'/);
   assert.match(notifierSource, /DialogContent/);
-  assert.match(notifierSource, /mobility:driver-assignment-notifications/);
+  assert.match(notifierSource, /trissea:driver-assignment-notifications/);
 });

@@ -13,10 +13,10 @@ test('landing primary CTA points to the app choice section', () => {
 });
 
 test('landing hero uses the agreed primary copy', () => {
-  assert.equal(LANDING_HERO.headline, 'Book local rides faster with Mobility');
+  assert.equal(LANDING_HERO.headline, 'TRISSEA');
   assert.equal(
     LANDING_HERO.subheadline,
-    'Choose the Passenger app to book rides, track queue updates, and follow trips live, or the Driver app to go on duty, manage assignments, and stay on top of daily work.'
+    'Book tricycle rides in Tuguegarao City, follow queue updates, and help drivers stay ready for daily TODA operations.'
   );
 });
 

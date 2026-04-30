@@ -34,7 +34,7 @@ export function PaletteStyleInjector() {
 
     const handlePaletteUpdated = () => applyThemePaletteStyleTag();
     const handleStorage = (event: StorageEvent) => {
-      if (!event.key || event.key.startsWith('mobility.theme.palette.')) {
+      if (!event.key || event.key.startsWith('trissea.theme.palette.')) {
         applyThemePaletteStyleTag();
       }
     };

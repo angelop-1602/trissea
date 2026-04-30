@@ -1,6 +1,6 @@
-# Mobility PWA
+# TRISSEA PWA
 
-Production-focused multi-tenant Mobility platform built with Next.js, Supabase, and Prisma.
+Production-focused TRISSEA platform for Tuguegarao City tricycle booking, driver operations, and TODA queue work built with Next.js, Supabase, and Prisma.
 
 ## Stack
 
@@ -21,7 +21,7 @@ Production-focused multi-tenant Mobility platform built with Next.js, Supabase, 
 - Tenancy:
   - Province-based tenant mapping using PSGC metadata (`psgcCode`, `provinceCode`, `regionCode`, `regionName`)
   - One tenant per province
-  - Tenant logo defaults to `/mobility-logo.png`
+  - Tenant logo defaults to `/trissea-logo.png`
   - Passengers are global users (`tenantId = null`)
 - Auth:
   - SMS OTP via Supabase (`/api/auth/sms/send`, `/api/auth/sms/verify`)

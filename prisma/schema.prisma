@@ -136,10 +136,17 @@ model Tenant {
   status         TenantStatus    @default(active)
   suspendedAt    DateTime?
   suspensionReason String?
-  logo           String          @default("/mobility-logo.png")
-  logoUrl        String          @default("/mobility-logo.png")
+  logo           String          @default("/trissea-logo.png")
+  logoUrl        String          @default("/trissea-logo.png")
+  faviconUrl     String?
   primaryColor   String?
   accentColor    String?
+  backgroundColor String?
+  foregroundColor String?
+  driverPrimaryColor String?
+  driverAccentColor String?
+  driverBackgroundColor String?
+  driverForegroundColor String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   Reservation    Reservation[]

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mobility-shell-v4';
+const CACHE_NAME = 'trissea-shell-v1';
 const OFFLINE_URL = '/offline';
 const APP_SHELL = [
   '/',
@@ -11,12 +11,11 @@ const APP_SHELL = [
   '/manifest-passenger.webmanifest',
   '/manifest-driver.webmanifest',
   OFFLINE_URL,
-  '/mobility-logo.png',
-  '/mobility-logo.svg',
-  '/mobilit-logo-white.png',
-  '/icon-light-32x32.png',
-  '/icon-dark-32x32.png',
-  '/apple-icon.png',
+  '/trissea-logo.png',
+  '/trissea-icon-32.png',
+  '/trissea-icon-192.png',
+  '/trissea-icon-512.png',
+  '/trissea-apple-icon.png',
 ];
 
 self.addEventListener('install', (event) => {

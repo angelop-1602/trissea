@@ -6,13 +6,27 @@ import { getPlatformTenantDetailData, updatePlatformTenantProfile } from '@/lib/
 import { getPrisma } from '@/lib/prisma';
 import { requireSuperadmin } from '@/lib/superadmin-access';
 
+const optionalHexColorSchema = z
+  .union([z.string().trim().max(40), z.null()])
+  .refine((value) => value === null || value === '' || /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value), {
+    message: 'Color must be a hex value like #14622e.',
+  })
+  .optional();
+
 const updateTenantSchema = z
   .object({
     status: z.enum(['active', 'suspended']).optional(),
     suspensionReason: z.union([z.string().trim().max(500), z.null()]).optional(),
     logoUrl: z.union([z.string().trim().max(500), z.null()]).optional(),
-    primaryColor: z.union([z.string().trim().max(40), z.null()]).optional(),
-    accentColor: z.union([z.string().trim().max(40), z.null()]).optional(),
+    faviconUrl: z.union([z.string().trim().max(500), z.null()]).optional(),
+    primaryColor: optionalHexColorSchema,
+    accentColor: optionalHexColorSchema,
+    backgroundColor: optionalHexColorSchema,
+    foregroundColor: optionalHexColorSchema,
+    driverPrimaryColor: optionalHexColorSchema,
+    driverAccentColor: optionalHexColorSchema,
+    driverBackgroundColor: optionalHexColorSchema,
+    driverForegroundColor: optionalHexColorSchema,
     reason: z.string().trim().min(5).max(500),
   })
   .refine(
@@ -20,8 +34,15 @@ const updateTenantSchema = z
       value.status !== undefined ||
       value.suspensionReason !== undefined ||
       value.logoUrl !== undefined ||
+      value.faviconUrl !== undefined ||
       value.primaryColor !== undefined ||
-      value.accentColor !== undefined,
+      value.accentColor !== undefined ||
+      value.backgroundColor !== undefined ||
+      value.foregroundColor !== undefined ||
+      value.driverPrimaryColor !== undefined ||
+      value.driverAccentColor !== undefined ||
+      value.driverBackgroundColor !== undefined ||
+      value.driverForegroundColor !== undefined,
     {
       message: 'At least one tenant update field is required.',
     }
@@ -66,8 +87,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       status: parsed.data.status,
       suspensionReason: parsed.data.suspensionReason,
       logoUrl: parsed.data.logoUrl,
+      faviconUrl: parsed.data.faviconUrl,
       primaryColor: parsed.data.primaryColor,
       accentColor: parsed.data.accentColor,
+      backgroundColor: parsed.data.backgroundColor,
+      foregroundColor: parsed.data.foregroundColor,
+      driverPrimaryColor: parsed.data.driverPrimaryColor,
+      driverAccentColor: parsed.data.driverAccentColor,
+      driverBackgroundColor: parsed.data.driverBackgroundColor,
+      driverForegroundColor: parsed.data.driverForegroundColor,
     });
 
     if (parsed.data.status !== undefined) {

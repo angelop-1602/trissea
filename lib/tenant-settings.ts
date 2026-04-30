@@ -1,7 +1,18 @@
 import type { Prisma, PrismaClient, Tenant } from '@prisma/client';
-import { DEFAULT_BRAND_LOGO_PATH, normalizeBrandLogoPath } from '@/lib/brand';
+import {
+  DEFAULT_BRAND_ICON_PATH,
+  DEFAULT_BRAND_LOGO_PATH,
+  normalizeBrandAssetPath,
+  normalizeBrandLogoPath,
+} from '@/lib/brand';
 import { BOOKING_FARE } from '@/lib/booking/constants';
-import { DEFAULT_ACCENT_HEX, DEFAULT_PRIMARY_HEX } from '@/lib/theme/constants';
+import {
+  DEFAULT_ACCENT_HEX,
+  DEFAULT_BACKGROUND_HEX,
+  DEFAULT_FOREGROUND_HEX,
+  DEFAULT_PRIMARY_HEX,
+} from '@/lib/theme/constants';
+import { normalizeHexColor, resolveTenantTheme } from '@/lib/theme/tenant-theme';
 
 export type DriversDefaultTab = 'verified' | 'unverified' | 'restricted';
 export type WorkflowDefaultTab = 'active' | 'completed' | 'cancelled';
@@ -21,8 +32,15 @@ export interface TenantSettingsShape {
   branding: {
     displayName: string;
     logoUrl: string;
+    faviconUrl: string;
     primaryColor: string;
     accentColor: string;
+    backgroundColor: string;
+    foregroundColor: string;
+    driverPrimaryColor: string;
+    driverAccentColor: string;
+    driverBackgroundColor: string;
+    driverForegroundColor: string;
   };
   moduleVisibility: {
     reportsVisible: boolean;
@@ -127,13 +145,39 @@ function asTerminalFareAdjustments(value: unknown, fallback: TerminalFareAdjustm
   return normalized;
 }
 
-export function buildDefaultTenantSettings(tenant?: Pick<Tenant, 'id' | 'name' | 'logoUrl' | 'logo' | 'primaryColor' | 'accentColor'> | null): TenantSettingsShape {
+type TenantBrandingFields = Pick<
+  Tenant,
+  | 'id'
+  | 'name'
+  | 'logoUrl'
+  | 'logo'
+  | 'faviconUrl'
+  | 'primaryColor'
+  | 'accentColor'
+  | 'backgroundColor'
+  | 'foregroundColor'
+  | 'driverPrimaryColor'
+  | 'driverAccentColor'
+  | 'driverBackgroundColor'
+  | 'driverForegroundColor'
+>;
+
+export function buildDefaultTenantSettings(tenant?: TenantBrandingFields | null): TenantSettingsShape {
+  const resolvedTheme = resolveTenantTheme(tenant);
+
   return {
     branding: {
       displayName: tenant?.name ?? 'Tenant Workspace',
       logoUrl: normalizeBrandLogoPath(tenant?.logoUrl ?? tenant?.logo ?? DEFAULT_BRAND_LOGO_PATH),
-      primaryColor: tenant?.primaryColor ?? DEFAULT_PRIMARY_HEX,
-      accentColor: tenant?.accentColor ?? DEFAULT_ACCENT_HEX,
+      faviconUrl: normalizeBrandAssetPath(tenant?.faviconUrl, DEFAULT_BRAND_ICON_PATH),
+      primaryColor: resolvedTheme.tenant.primary,
+      accentColor: resolvedTheme.tenant.accent,
+      backgroundColor: resolvedTheme.tenant.background,
+      foregroundColor: resolvedTheme.tenant.foreground,
+      driverPrimaryColor: resolvedTheme.driver.primary,
+      driverAccentColor: resolvedTheme.driver.accent,
+      driverBackgroundColor: resolvedTheme.driver.background,
+      driverForegroundColor: resolvedTheme.driver.foreground,
     },
     moduleVisibility: {
       reportsVisible: true,
@@ -182,7 +226,7 @@ export function normalizeTenantSettings(
     reportingPreferences?: unknown;
     uiPreferences?: unknown;
   } | null | undefined,
-  tenant?: Pick<Tenant, 'id' | 'name' | 'logoUrl' | 'logo' | 'primaryColor' | 'accentColor'> | null
+  tenant?: TenantBrandingFields | null
 ): TenantSettingsShape {
   const defaults = buildDefaultTenantSettings(tenant);
   const branding = asRecord(input?.branding);
@@ -198,8 +242,34 @@ export function normalizeTenantSettings(
     branding: {
       displayName: asString(branding.displayName, defaults.branding.displayName),
       logoUrl: normalizeBrandLogoPath(asString(branding.logoUrl, defaults.branding.logoUrl)),
-      primaryColor: asString(branding.primaryColor, defaults.branding.primaryColor),
-      accentColor: asString(branding.accentColor, defaults.branding.accentColor),
+      faviconUrl: normalizeBrandAssetPath(
+        asString(branding.faviconUrl, defaults.branding.faviconUrl),
+        DEFAULT_BRAND_ICON_PATH
+      ),
+      primaryColor: normalizeHexColor(asString(branding.primaryColor, defaults.branding.primaryColor), DEFAULT_PRIMARY_HEX) ?? DEFAULT_PRIMARY_HEX,
+      accentColor: normalizeHexColor(asString(branding.accentColor, defaults.branding.accentColor), DEFAULT_ACCENT_HEX) ?? DEFAULT_ACCENT_HEX,
+      backgroundColor:
+        normalizeHexColor(asString(branding.backgroundColor, defaults.branding.backgroundColor), DEFAULT_BACKGROUND_HEX) ??
+        DEFAULT_BACKGROUND_HEX,
+      foregroundColor:
+        normalizeHexColor(asString(branding.foregroundColor, defaults.branding.foregroundColor), DEFAULT_FOREGROUND_HEX) ??
+        DEFAULT_FOREGROUND_HEX,
+      driverPrimaryColor:
+        normalizeHexColor(asString(branding.driverPrimaryColor, defaults.branding.driverPrimaryColor), defaults.branding.driverPrimaryColor) ??
+        defaults.branding.driverPrimaryColor,
+      driverAccentColor:
+        normalizeHexColor(asString(branding.driverAccentColor, defaults.branding.driverAccentColor), defaults.branding.driverAccentColor) ??
+        defaults.branding.driverAccentColor,
+      driverBackgroundColor:
+        normalizeHexColor(
+          asString(branding.driverBackgroundColor, defaults.branding.driverBackgroundColor),
+          defaults.branding.driverBackgroundColor
+        ) ?? defaults.branding.driverBackgroundColor,
+      driverForegroundColor:
+        normalizeHexColor(
+          asString(branding.driverForegroundColor, defaults.branding.driverForegroundColor),
+          defaults.branding.driverForegroundColor
+        ) ?? defaults.branding.driverForegroundColor,
     },
     moduleVisibility: {
       reportsVisible: asBoolean(moduleVisibility.reportsVisible, defaults.moduleVisibility.reportsVisible),

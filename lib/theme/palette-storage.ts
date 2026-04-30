@@ -11,11 +11,11 @@ import {
 type PaletteStorage = Pick<Storage, 'getItem'> & Partial<Pick<Storage, 'setItem' | 'removeItem'>>;
 type ThemeModeStorage = Pick<Storage, 'getItem'> & Partial<Pick<Storage, 'setItem' | 'removeItem'>>;
 
-export const THEME_MODE_STORAGE_KEY = 'mobility.theme.mode';
+export const THEME_MODE_STORAGE_KEY = 'trissea.theme.mode';
 export const DEFAULT_THEME_MODE_STORAGE_KEY = 'theme';
-export const LIGHT_PALETTE_STORAGE_KEY = 'mobility.theme.palette.light';
-export const DARK_PALETTE_STORAGE_KEY = 'mobility.theme.palette.dark';
-export const PALETTE_STORAGE_EVENT = 'mobility:palette-updated';
+export const LIGHT_PALETTE_STORAGE_KEY = 'trissea.theme.palette.light';
+export const DARK_PALETTE_STORAGE_KEY = 'trissea.theme.palette.dark';
+export const PALETTE_STORAGE_EVENT = 'trissea:palette-updated';
 const THEME_MODE_VALUES = new Set<ThemeMode>(['system', 'light', 'dark']);
 
 function getPaletteStorageKey(mode: 'light' | 'dark') {

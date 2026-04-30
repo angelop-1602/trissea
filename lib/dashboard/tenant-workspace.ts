@@ -9,6 +9,7 @@ import { assertDriverRestrictionTransition, assertDriverVerificationTransition }
 import { approveDriverProfile, ensureTenantDriverProfiles, setDriverRestrictionState } from '@/lib/driver-domain';
 import { getTerminalCapacityValidationError } from '@/lib/dashboard/terminal-analytics';
 import { ensureTenantSettings, normalizeTenantSettings } from '@/lib/tenant-settings';
+import { resolveTenantTheme } from '@/lib/theme/tenant-theme';
 
 type TenantRoleMembershipRecord = TenantMembership & {
   User: {
@@ -423,6 +424,7 @@ export async function updateTenantWorkspaceSettings(params: {
 }) {
   const tenant = await getTenantOrThrow(params.prisma, params.tenantId);
   const normalized = normalizeTenantSettings(params.input, tenant);
+  const resolvedTheme = resolveTenantTheme(tenant);
   const existingSettings = await params.prisma.tenantSettings.findUnique({
     where: { tenantId: tenant.id },
   });
@@ -431,8 +433,18 @@ export async function updateTenantWorkspaceSettings(params: {
     branding: {
       displayName: tenant.name,
       logoUrl: tenant.logoUrl || tenant.logo || normalized.branding.logoUrl,
-      primaryColor: tenant.primaryColor || normalized.branding.primaryColor,
-      accentColor: tenant.accentColor || normalized.branding.accentColor,
+      faviconUrl: tenant.faviconUrl || normalized.branding.faviconUrl,
+      primaryColor: tenant.primaryColor || normalized.branding.primaryColor || resolvedTheme.tenant.primary,
+      accentColor: tenant.accentColor || normalized.branding.accentColor || resolvedTheme.tenant.accent,
+      backgroundColor: tenant.backgroundColor || normalized.branding.backgroundColor || resolvedTheme.tenant.background,
+      foregroundColor: tenant.foregroundColor || normalized.branding.foregroundColor || resolvedTheme.tenant.foreground,
+      driverPrimaryColor:
+        tenant.driverPrimaryColor || normalized.branding.driverPrimaryColor || resolvedTheme.driver.primary,
+      driverAccentColor: tenant.driverAccentColor || normalized.branding.driverAccentColor || resolvedTheme.driver.accent,
+      driverBackgroundColor:
+        tenant.driverBackgroundColor || normalized.branding.driverBackgroundColor || resolvedTheme.driver.background,
+      driverForegroundColor:
+        tenant.driverForegroundColor || normalized.branding.driverForegroundColor || resolvedTheme.driver.foreground,
     },
   };
 

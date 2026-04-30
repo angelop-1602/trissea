@@ -9,7 +9,7 @@ function normalizeEmail(email: string) {
 }
 
 export function createTemporaryPassword() {
-  return `Mobility!${randomBytes(4).toString('hex')}`;
+  return `TRISSEA!${randomBytes(4).toString('hex')}`;
 }
 
 async function getOrCreateAuthUser(email: string, password: string) {

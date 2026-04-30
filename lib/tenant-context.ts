@@ -76,7 +76,7 @@ async function reverseGeocodeProvince(point: CoordinatePoint): Promise<string | 
     headers: {
       Accept: 'application/json',
       'Accept-Language': 'en',
-      'User-Agent': 'MobilityTenantResolver/1.0',
+      'User-Agent': 'TRISSEATenantResolver/1.0',
     },
   });
 

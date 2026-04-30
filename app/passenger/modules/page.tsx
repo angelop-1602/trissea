@@ -80,7 +80,7 @@ export default function PassengerModulesPage() {
       headerSurface="minimal"
     >
       <section className="rounded-[2rem] border border-primary/15 bg-primary/[0.07] px-4 py-5">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Mobility platform</p>
+        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">TRISSEA platform</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">
           {currentTenant?.name ?? 'Passenger modules'}
         </h1>

@@ -1,5 +1,11 @@
 import type { MetadataRoute } from 'next';
-import { BRAND_DESCRIPTION, BRAND_NAME, PLATFORM_NAME } from '@/lib/brand';
+import {
+  BRAND_DESCRIPTION,
+  BRAND_NAME,
+  DEFAULT_BRAND_APPLE_ICON_PATH,
+  DEFAULT_BRAND_ICON_PATH,
+  PLATFORM_NAME,
+} from '@/lib/brand';
 import { DEFAULT_PRIMARY_HEX, PWA_BACKGROUND_HEX } from '@/lib/theme/constants';
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -21,7 +27,7 @@ export default function manifest(): MetadataRoute.Manifest {
         url: '/passenger',
         icons: [
           {
-            src: '/icon-light-32x32.png',
+            src: DEFAULT_BRAND_ICON_PATH,
             sizes: '32x32',
             type: 'image/png',
           },
@@ -34,7 +40,7 @@ export default function manifest(): MetadataRoute.Manifest {
         url: '/driver',
         icons: [
           {
-            src: '/icon-light-32x32.png',
+            src: DEFAULT_BRAND_ICON_PATH,
             sizes: '32x32',
             type: 'image/png',
           },
@@ -43,12 +49,12 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     icons: [
       {
-        src: '/icon-light-32x32.png',
+        src: DEFAULT_BRAND_ICON_PATH,
         sizes: '32x32',
         type: 'image/png',
       },
       {
-        src: '/apple-icon.png',
+        src: DEFAULT_BRAND_APPLE_ICON_PATH,
         sizes: '180x180',
         type: 'image/png',
       },

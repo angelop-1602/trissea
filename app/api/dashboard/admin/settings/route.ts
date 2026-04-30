@@ -7,6 +7,7 @@ import { AUDIT_MODULES, createTenantAuditLog } from '@/lib/audit-log';
 import { getPrisma } from '@/lib/prisma';
 import { requireTenantMembershipWithPermissions, TENANT_PERMISSION_KEYS } from '@/lib/tenant-rbac';
 import { ensureTenantSettings, normalizeTenantSettings } from '@/lib/tenant-settings';
+import { resolveTenantTheme } from '@/lib/theme/tenant-theme';
 
 export async function GET(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -35,8 +36,15 @@ export async function GET(request: NextRequest) {
         name: tenant.name,
         logo: tenant.logo,
         logoUrl: tenant.logoUrl,
+        faviconUrl: tenant.faviconUrl,
         primaryColor: tenant.primaryColor,
         accentColor: tenant.accentColor,
+        backgroundColor: tenant.backgroundColor,
+        foregroundColor: tenant.foregroundColor,
+        driverPrimaryColor: tenant.driverPrimaryColor,
+        driverAccentColor: tenant.driverAccentColor,
+        driverBackgroundColor: tenant.driverBackgroundColor,
+        driverForegroundColor: tenant.driverForegroundColor,
       },
     });
   } catch (error) {
@@ -65,6 +73,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const normalized = normalizeTenantSettings(json as Record<string, unknown>, tenant);
+    const resolvedTheme = resolveTenantTheme(tenant);
     const existingSettings = await prisma.tenantSettings.findUnique({
       where: { tenantId: tenant.id },
     });
@@ -73,8 +82,18 @@ export async function PATCH(request: NextRequest) {
       branding: {
         displayName: tenant.name,
         logoUrl: tenant.logoUrl || tenant.logo || normalized.branding.logoUrl,
-        primaryColor: tenant.primaryColor || normalized.branding.primaryColor,
-        accentColor: tenant.accentColor || normalized.branding.accentColor,
+        faviconUrl: tenant.faviconUrl || normalized.branding.faviconUrl,
+        primaryColor: tenant.primaryColor || normalized.branding.primaryColor || resolvedTheme.tenant.primary,
+        accentColor: tenant.accentColor || normalized.branding.accentColor || resolvedTheme.tenant.accent,
+        backgroundColor: tenant.backgroundColor || normalized.branding.backgroundColor || resolvedTheme.tenant.background,
+        foregroundColor: tenant.foregroundColor || normalized.branding.foregroundColor || resolvedTheme.tenant.foreground,
+        driverPrimaryColor:
+          tenant.driverPrimaryColor || normalized.branding.driverPrimaryColor || resolvedTheme.driver.primary,
+        driverAccentColor: tenant.driverAccentColor || normalized.branding.driverAccentColor || resolvedTheme.driver.accent,
+        driverBackgroundColor:
+          tenant.driverBackgroundColor || normalized.branding.driverBackgroundColor || resolvedTheme.driver.background,
+        driverForegroundColor:
+          tenant.driverForegroundColor || normalized.branding.driverForegroundColor || resolvedTheme.driver.foreground,
       },
     };
 
@@ -139,8 +158,15 @@ export async function PATCH(request: NextRequest) {
         name: tenant.name,
         logo: tenant.logo,
         logoUrl: tenant.logoUrl,
+        faviconUrl: tenant.faviconUrl,
         primaryColor: tenant.primaryColor,
         accentColor: tenant.accentColor,
+        backgroundColor: tenant.backgroundColor,
+        foregroundColor: tenant.foregroundColor,
+        driverPrimaryColor: tenant.driverPrimaryColor,
+        driverAccentColor: tenant.driverAccentColor,
+        driverBackgroundColor: tenant.driverBackgroundColor,
+        driverForegroundColor: tenant.driverForegroundColor,
       },
     });
   } catch (error) {

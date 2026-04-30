@@ -1,7 +1,7 @@
 type EnvSource = Record<string, string | undefined>;
 
 const globalForEnvValidation = globalThis as unknown as {
-  __mobilityEnvValidated: boolean | undefined;
+  __trisseaEnvValidated: boolean | undefined;
 };
 
 function readTrimmed(env: EnvSource, key: string): string {
@@ -31,11 +31,11 @@ export function validateProductionRuntimeEnv(env: EnvSource = process.env): void
 }
 
 export function ensureProductionRuntimeEnv(): void {
-  if (globalForEnvValidation.__mobilityEnvValidated) {
+  if (globalForEnvValidation.__trisseaEnvValidated) {
     return;
   }
 
   validateProductionRuntimeEnv(process.env);
-  globalForEnvValidation.__mobilityEnvValidated = true;
+  globalForEnvValidation.__trisseaEnvValidated = true;
 }
 

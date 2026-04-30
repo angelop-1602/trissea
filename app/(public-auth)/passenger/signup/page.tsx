@@ -249,7 +249,7 @@ export default function PassengerSignupPage() {
           <label className="flex items-start gap-3 rounded-2xl border border-border/40 bg-background/30 px-3 py-2.5">
             <Checkbox checked={agreeTerms} onCheckedChange={(checked) => setAgreeTerms(checked === true)} />
             <span className="text-xs leading-5 text-muted-foreground">
-              I agree to Mobility terms of service and privacy policy.
+              I agree to TRISSEA terms of service and privacy policy.
             </span>
           </label>
 

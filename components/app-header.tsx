@@ -82,7 +82,7 @@ export function AppHeader({ showDevTools = false }: AppHeaderProps) {
               />
             ) : (
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
-                M
+                T
               </div>
             )}
             <span className="hidden sm:inline">{branding.displayName ?? BRAND_NAME}</span>

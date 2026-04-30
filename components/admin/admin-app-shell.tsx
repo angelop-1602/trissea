@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import type { CSSProperties } from 'react';
 import { MonitorSmartphone } from 'lucide-react';
 import type { AdminSidebarItem } from '@/lib/admin-navigation';
 import { AdminSidebar } from '@/components/admin/admin-sidebar';
@@ -19,6 +20,7 @@ interface AdminAppShellProps {
   activeLabel: string;
   displayName: string;
   logo?: string;
+  themeStyle?: CSSProperties;
   onLogout: () => void | Promise<void>;
 }
 
@@ -35,10 +37,11 @@ export function AdminAppShell({
   activeLabel,
   displayName,
   logo,
+  themeStyle,
   onLogout,
 }: AdminAppShellProps) {
   return (
-    <div className="bg-background lg:fixed lg:inset-0">
+    <div className="bg-background lg:fixed lg:inset-0" style={themeStyle}>
       <div className="p-4 lg:hidden">
         <div className="rounded-3xl border border-border bg-card p-6 text-center shadow-sm">
           <MonitorSmartphone className="mx-auto mb-3 h-7 w-7 text-muted-foreground" />

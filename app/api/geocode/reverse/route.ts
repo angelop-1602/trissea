@@ -9,12 +9,12 @@ type ReverseCacheEntry = {
 };
 
 const globalForReverseGeocodeCache = globalThis as unknown as {
-  __mobilityReverseGeocodeCache: Map<string, ReverseCacheEntry> | undefined;
+  __trisseaReverseGeocodeCache: Map<string, ReverseCacheEntry> | undefined;
 };
 
 const reverseGeocodeCache =
-  globalForReverseGeocodeCache.__mobilityReverseGeocodeCache ??
-  (globalForReverseGeocodeCache.__mobilityReverseGeocodeCache = new Map<string, ReverseCacheEntry>());
+  globalForReverseGeocodeCache.__trisseaReverseGeocodeCache ??
+  (globalForReverseGeocodeCache.__trisseaReverseGeocodeCache = new Map<string, ReverseCacheEntry>());
 
 interface NominatimReverseResponse {
   display_name?: string;
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
       headers: {
         Accept: 'application/json',
         'Accept-Language': 'en',
-        'User-Agent': 'MobilityBooking/1.0',
+        'User-Agent': 'TRISSEABooking/1.0',
       },
     });
 

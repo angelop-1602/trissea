@@ -54,7 +54,7 @@ type OnDemandQuoteContext = {
 };
 
 const globalForPresenceCleanup = globalThis as unknown as {
-  __mobilityLastPresenceCleanupAt: number | undefined;
+  __trisseaLastPresenceCleanupAt: number | undefined;
 };
 
 async function fetchDriverPresenceById(prisma: PrismaDbClient, driverId: string): Promise<DriverPresence | null> {
@@ -497,13 +497,13 @@ async function buildOnDemandQuoteContext(
 
 async function maybeCleanupStaleDriverPresence(prisma: ReturnType<typeof getPrisma>) {
   const now = Date.now();
-  const lastCleanupAt = globalForPresenceCleanup.__mobilityLastPresenceCleanupAt ?? 0;
+  const lastCleanupAt = globalForPresenceCleanup.__trisseaLastPresenceCleanupAt ?? 0;
 
   if (now - lastCleanupAt < DRIVER_STALE_CLEANUP_INTERVAL_SECONDS * 1000) {
     return;
   }
 
-  globalForPresenceCleanup.__mobilityLastPresenceCleanupAt = now;
+  globalForPresenceCleanup.__trisseaLastPresenceCleanupAt = now;
 
   const cutoff = new Date(now - DRIVER_HEARTBEAT_MAX_AGE_SECONDS * 1000);
 

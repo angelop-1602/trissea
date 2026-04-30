@@ -20,12 +20,12 @@ type SearchCacheEntry = {
 };
 
 const globalForSearchCache = globalThis as unknown as {
-  __mobilityGeocodeSearchCache: Map<string, SearchCacheEntry> | undefined;
+  __trisseaGeocodeSearchCache: Map<string, SearchCacheEntry> | undefined;
 };
 
 const searchCache =
-  globalForSearchCache.__mobilityGeocodeSearchCache ??
-  (globalForSearchCache.__mobilityGeocodeSearchCache = new Map<string, SearchCacheEntry>());
+  globalForSearchCache.__trisseaGeocodeSearchCache ??
+  (globalForSearchCache.__trisseaGeocodeSearchCache = new Map<string, SearchCacheEntry>());
 
 function normalizeLabel(displayName: string): string {
   return displayName
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
       headers: {
         Accept: 'application/json',
         'Accept-Language': 'en',
-        'User-Agent': 'MobilityBooking/1.0',
+        'User-Agent': 'TRISSEABooking/1.0',
       },
     });
 

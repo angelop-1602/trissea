@@ -4,6 +4,7 @@ import React, { createContext, useContext, useMemo, useState, ReactNode } from '
 import type { Ride, RideStatus, Tenant, User } from '@prisma/client';
 import { normalizeBrandLogoPath } from '@/lib/brand';
 import { DEFAULT_ACCENT_HEX, DEFAULT_PRIMARY_HEX } from '@/lib/theme/constants';
+import type { TenantThemeInput } from '@/lib/theme/tenant-theme';
 import type { TenantSettingsShape } from '@/lib/dashboard/client';
 import type { TenantTransportModuleSummary } from '@/lib/transport-modules';
 
@@ -21,7 +22,11 @@ interface StoreContextType {
   resetSessionState: () => void;
   rides: Ride[];
   updateRideStatus: (rideId: string, status: RideStatus) => void;
-  getTenantBranding: () => { logo?: string; primaryColor?: string; accentColor?: string; displayName?: string };
+  getTenantBranding: () => (TenantThemeInput & {
+    logo?: string;
+    faviconUrl?: string;
+    displayName?: string;
+  });
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -43,8 +48,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return {
         displayName: currentTenantSettings.branding.displayName,
         logo: normalizeBrandLogoPath(currentTenantSettings.branding.logoUrl),
+        faviconUrl: currentTenantSettings.branding.faviconUrl,
         primaryColor: currentTenantSettings.branding.primaryColor,
         accentColor: currentTenantSettings.branding.accentColor,
+        backgroundColor: currentTenantSettings.branding.backgroundColor,
+        foregroundColor: currentTenantSettings.branding.foregroundColor,
+        driverPrimaryColor: currentTenantSettings.branding.driverPrimaryColor,
+        driverAccentColor: currentTenantSettings.branding.driverAccentColor,
+        driverBackgroundColor: currentTenantSettings.branding.driverBackgroundColor,
+        driverForegroundColor: currentTenantSettings.branding.driverForegroundColor,
       };
     }
 
@@ -52,8 +64,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return {
         displayName: currentTenant.name,
         logo: normalizeBrandLogoPath(currentTenant.logo ?? currentTenant.logoUrl ?? undefined),
+        faviconUrl: currentTenant.faviconUrl ?? undefined,
         primaryColor: currentTenant.primaryColor ?? undefined,
         accentColor: currentTenant.accentColor ?? undefined,
+        backgroundColor: currentTenant.backgroundColor ?? undefined,
+        foregroundColor: currentTenant.foregroundColor ?? undefined,
+        driverPrimaryColor: currentTenant.driverPrimaryColor ?? undefined,
+        driverAccentColor: currentTenant.driverAccentColor ?? undefined,
+        driverBackgroundColor: currentTenant.driverBackgroundColor ?? undefined,
+        driverForegroundColor: currentTenant.driverForegroundColor ?? undefined,
       };
     }
 

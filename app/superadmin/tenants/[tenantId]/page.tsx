@@ -146,8 +146,15 @@ export default function SuperadminTenantDetailPage() {
 
   const [brandingDraft, setBrandingDraft] = useState({
     logoUrl: '',
+    faviconUrl: '',
     primaryColor: '',
     accentColor: '',
+    backgroundColor: '',
+    foregroundColor: '',
+    driverPrimaryColor: '',
+    driverAccentColor: '',
+    driverBackgroundColor: '',
+    driverForegroundColor: '',
     reason: '',
   });
   const [lifecycleDialogOpen, setLifecycleDialogOpen] = useState(false);
@@ -232,8 +239,15 @@ export default function SuperadminTenantDetailPage() {
       setSettingsDraft(nextSettings.settings);
       setBrandingDraft({
         logoUrl: nextOverview.tenant.logoUrl ?? '',
+        faviconUrl: nextOverview.tenant.faviconUrl ?? '',
         primaryColor: nextOverview.tenant.primaryColor ?? '',
         accentColor: nextOverview.tenant.accentColor ?? '',
+        backgroundColor: nextOverview.tenant.backgroundColor ?? '',
+        foregroundColor: nextOverview.tenant.foregroundColor ?? '',
+        driverPrimaryColor: nextOverview.tenant.driverPrimaryColor ?? '',
+        driverAccentColor: nextOverview.tenant.driverAccentColor ?? '',
+        driverBackgroundColor: nextOverview.tenant.driverBackgroundColor ?? '',
+        driverForegroundColor: nextOverview.tenant.driverForegroundColor ?? '',
         reason: '',
       });
       setInviteForm((current) => ({
@@ -329,8 +343,15 @@ export default function SuperadminTenantDetailPage() {
       await updateSuperadminTenant(tenant.id, {
         reason: brandingDraft.reason.trim(),
         logoUrl: brandingDraft.logoUrl.trim() || null,
+        faviconUrl: brandingDraft.faviconUrl.trim() || null,
         primaryColor: brandingDraft.primaryColor.trim() || null,
         accentColor: brandingDraft.accentColor.trim() || null,
+        backgroundColor: brandingDraft.backgroundColor.trim() || null,
+        foregroundColor: brandingDraft.foregroundColor.trim() || null,
+        driverPrimaryColor: brandingDraft.driverPrimaryColor.trim() || null,
+        driverAccentColor: brandingDraft.driverAccentColor.trim() || null,
+        driverBackgroundColor: brandingDraft.driverBackgroundColor.trim() || null,
+        driverForegroundColor: brandingDraft.driverForegroundColor.trim() || null,
       });
       setNotice('Tenant branding updated.');
       await loadData();
@@ -574,8 +595,8 @@ export default function SuperadminTenantDetailPage() {
                         description="Update tenant logo and colors. These changes also feed tenant settings branding."
                       >
                         <div className="space-y-4">
-                          <div className="grid gap-4 md:grid-cols-3">
-                            <div className="space-y-2 md:col-span-3">
+                          <div className="grid gap-4 md:grid-cols-4">
+                            <div className="space-y-2 md:col-span-2">
                               <Label htmlFor="branding-logo">Logo URL</Label>
                               <Input
                                 id="branding-logo"
@@ -583,7 +604,18 @@ export default function SuperadminTenantDetailPage() {
                                 onChange={(event) =>
                                   setBrandingDraft((current) => ({ ...current, logoUrl: event.target.value }))
                                 }
-                                placeholder="/mobility-logo.png"
+                                placeholder="/trissea-logo.png"
+                              />
+                            </div>
+                            <div className="space-y-2 md:col-span-2">
+                              <Label htmlFor="branding-favicon">Favicon URL</Label>
+                              <Input
+                                id="branding-favicon"
+                                value={brandingDraft.faviconUrl}
+                                onChange={(event) =>
+                                  setBrandingDraft((current) => ({ ...current, faviconUrl: event.target.value }))
+                                }
+                                placeholder="/trissea-icon-32.png"
                               />
                             </div>
                             <div className="space-y-2">
@@ -606,6 +638,72 @@ export default function SuperadminTenantDetailPage() {
                                   setBrandingDraft((current) => ({ ...current, accentColor: event.target.value }))
                                 }
                                 placeholder="#fecc04"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="branding-background">Background</Label>
+                              <Input
+                                id="branding-background"
+                                value={brandingDraft.backgroundColor}
+                                onChange={(event) =>
+                                  setBrandingDraft((current) => ({ ...current, backgroundColor: event.target.value }))
+                                }
+                                placeholder="#f5f9f7"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="branding-foreground">Text Color</Label>
+                              <Input
+                                id="branding-foreground"
+                                value={brandingDraft.foregroundColor}
+                                onChange={(event) =>
+                                  setBrandingDraft((current) => ({ ...current, foregroundColor: event.target.value }))
+                                }
+                                placeholder="#0f1f16"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="branding-driver-primary">Driver Primary</Label>
+                              <Input
+                                id="branding-driver-primary"
+                                value={brandingDraft.driverPrimaryColor}
+                                onChange={(event) =>
+                                  setBrandingDraft((current) => ({ ...current, driverPrimaryColor: event.target.value }))
+                                }
+                                placeholder="#0f4d26"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="branding-driver-accent">Driver Accent</Label>
+                              <Input
+                                id="branding-driver-accent"
+                                value={brandingDraft.driverAccentColor}
+                                onChange={(event) =>
+                                  setBrandingDraft((current) => ({ ...current, driverAccentColor: event.target.value }))
+                                }
+                                placeholder="#fecc04"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="branding-driver-background">Driver Background</Label>
+                              <Input
+                                id="branding-driver-background"
+                                value={brandingDraft.driverBackgroundColor}
+                                onChange={(event) =>
+                                  setBrandingDraft((current) => ({ ...current, driverBackgroundColor: event.target.value }))
+                                }
+                                placeholder="#f5f9f7"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="branding-driver-foreground">Driver Text</Label>
+                              <Input
+                                id="branding-driver-foreground"
+                                value={brandingDraft.driverForegroundColor}
+                                onChange={(event) =>
+                                  setBrandingDraft((current) => ({ ...current, driverForegroundColor: event.target.value }))
+                                }
+                                placeholder="#0f1f16"
                               />
                             </div>
                             <div className="space-y-2">

@@ -27,32 +27,30 @@ type OnboardingArtworkStyle = CSSProperties & {
 export const ONBOARDING_SPLASH_DURATION_MS = 2000;
 
 const SPLASH_FADE_MS = 280;
-const SPLASH_LOGO_PATH = '/mobilit-logo-white.png';
+const SPLASH_LOGO_PATH = '/trissea-logo.png';
 
 const ROLE_THEME = {
   passenger: {
-    page: 'bg-white text-sky-950 dark:bg-[#031E2F] dark:text-white',
-    lower: 'bg-white dark:bg-[#031E2F]',
-    splash:
-      'bg-[linear-gradient(180deg,#0369A1_0%,#0EA5E9_48%,#7DD3FC_100%)] dark:bg-[linear-gradient(180deg,#071B2A_0%,#0B4F75_50%,#0369A1_100%)]',
-    link: 'text-[#0369A1] hover:text-[#075985] dark:text-sky-200 dark:hover:text-white',
-    focus: 'focus-visible:ring-[#0369A1]',
-    primary: 'bg-[#0369A1] text-white hover:bg-[#075985] dark:bg-[#0369A1] dark:text-white dark:hover:bg-[#075985]',
-    progressActive: 'bg-[#0369A1] dark:bg-white',
-    progressIdle: 'bg-sky-200 dark:bg-sky-300/18',
-    mutedText: 'text-slate-600 dark:text-white/72',
+    page: 'theme-passenger bg-background text-foreground',
+    lower: 'bg-background',
+    splash: 'bg-primary text-primary-foreground',
+    link: 'text-primary hover:text-primary/80',
+    focus: 'focus-visible:ring-primary',
+    primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
+    progressActive: 'bg-primary dark:bg-primary',
+    progressIdle: 'bg-muted',
+    mutedText: 'text-muted-foreground',
   },
   driver: {
-    page: 'bg-white text-teal-950 dark:bg-[#032D2A] dark:text-white',
-    lower: 'bg-white dark:bg-[#032D2A]',
-    splash:
-      'bg-[linear-gradient(180deg,#0F766E_0%,#14B8A6_50%,#99F6E4_100%)] dark:bg-[linear-gradient(180deg,#041F24_0%,#115E59_54%,#0F766E_100%)]',
-    link: 'text-[#0F766E] hover:text-[#115E59] dark:text-teal-200 dark:hover:text-white',
-    focus: 'focus-visible:ring-[#0F766E]',
-    primary: 'bg-[#0F766E] text-white hover:bg-[#115E59] dark:bg-[#0F766E] dark:text-white dark:hover:bg-[#115E59]',
-    progressActive: 'bg-[#0F766E] dark:bg-white',
-    progressIdle: 'bg-teal-200 dark:bg-teal-300/18',
-    mutedText: 'text-slate-600 dark:text-white/72',
+    page: 'theme-driver bg-background text-foreground',
+    lower: 'bg-background',
+    splash: 'theme-driver bg-primary text-primary-foreground',
+    link: 'text-primary hover:text-primary/80',
+    focus: 'focus-visible:ring-primary',
+    primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
+    progressActive: 'bg-primary dark:bg-primary',
+    progressIdle: 'bg-muted',
+    mutedText: 'text-muted-foreground',
   },
 } as const;
 
@@ -251,7 +249,7 @@ function OnboardingSplash({
         <img
           src={SPLASH_LOGO_PATH}
           alt={`${BRAND_NAME} logo`}
-          className="h-28 w-28 object-contain drop-shadow-[0_24px_50px_rgba(0,0,0,0.18)] sm:h-32 sm:w-32"
+          className="h-28 w-28 rounded-3xl bg-white/95 object-contain p-2 shadow-lg sm:h-32 sm:w-32"
         />
       </div>
     </main>

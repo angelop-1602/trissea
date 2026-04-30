@@ -62,11 +62,11 @@ type CacheEntry<T> = {
 };
 
 const globalForPsgc = globalThis as unknown as {
-  __mobilityPsgcCache: Map<string, CacheEntry<unknown>> | undefined;
+  __trisseaPsgcCache: Map<string, CacheEntry<unknown>> | undefined;
 };
 
-const psgcCache = globalForPsgc.__mobilityPsgcCache ?? new Map<string, CacheEntry<unknown>>();
-globalForPsgc.__mobilityPsgcCache = psgcCache;
+const psgcCache = globalForPsgc.__trisseaPsgcCache ?? new Map<string, CacheEntry<unknown>>();
+globalForPsgc.__trisseaPsgcCache = psgcCache;
 
 function normalizeSearchTerm(value: string): string {
   return value

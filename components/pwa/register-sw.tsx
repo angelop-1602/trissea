@@ -19,7 +19,7 @@ export function RegisterServiceWorker() {
       if ('caches' in window) {
         void caches.keys().then((keys) => {
           for (const key of keys) {
-            if (key.startsWith('mobility-shell-')) {
+            if (key.startsWith('trissea-shell-')) {
               void caches.delete(key);
             }
           }

@@ -26,6 +26,18 @@ const config: Config = {
           DEFAULT: 'var(--destructive)',
           foreground: 'var(--destructive-foreground)',
         },
+        success: {
+          DEFAULT: 'var(--success)',
+          foreground: 'var(--success-foreground)',
+        },
+        warning: {
+          DEFAULT: 'var(--warning)',
+          foreground: 'var(--warning-foreground)',
+        },
+        info: {
+          DEFAULT: 'var(--info)',
+          foreground: 'var(--info-foreground)',
+        },
         muted: {
           DEFAULT: 'var(--muted)',
           foreground: 'var(--muted-foreground)',
@@ -45,6 +57,34 @@ const config: Config = {
         brand: {
           DEFAULT: 'var(--brand)',
           foreground: 'var(--brand-foreground)',
+        },
+        tenant: {
+          primary: {
+            DEFAULT: 'var(--tenant-primary)',
+            foreground: 'var(--tenant-primary-foreground)',
+          },
+          accent: {
+            DEFAULT: 'var(--tenant-accent)',
+            foreground: 'var(--tenant-accent-foreground)',
+          },
+          background: 'var(--tenant-background)',
+          foreground: 'var(--tenant-foreground)',
+          card: 'var(--tenant-card)',
+          border: 'var(--tenant-border)',
+        },
+        driver: {
+          primary: {
+            DEFAULT: 'var(--driver-primary)',
+            foreground: 'var(--driver-primary-foreground)',
+          },
+          accent: {
+            DEFAULT: 'var(--driver-accent)',
+            foreground: 'var(--driver-accent-foreground)',
+          },
+          background: 'var(--driver-background)',
+          foreground: 'var(--driver-foreground)',
+          card: 'var(--driver-card)',
+          border: 'var(--driver-border)',
         },
       },
       borderRadius: {

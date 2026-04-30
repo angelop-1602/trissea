@@ -9,12 +9,12 @@ type RouteCacheEntry = {
 };
 
 const globalForRoadRouteCache = globalThis as unknown as {
-  __mobilityRoadRouteCache: Map<string, RouteCacheEntry> | undefined;
+  __trisseaRoadRouteCache: Map<string, RouteCacheEntry> | undefined;
 };
 
 const roadRouteCache =
-  globalForRoadRouteCache.__mobilityRoadRouteCache ??
-  (globalForRoadRouteCache.__mobilityRoadRouteCache = new Map<string, RouteCacheEntry>());
+  globalForRoadRouteCache.__trisseaRoadRouteCache ??
+  (globalForRoadRouteCache.__trisseaRoadRouteCache = new Map<string, RouteCacheEntry>());
 
 interface OsrmRouteResponse {
   routes?: Array<{

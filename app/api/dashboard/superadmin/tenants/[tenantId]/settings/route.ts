@@ -32,8 +32,15 @@ export async function GET(request: NextRequest, { params }: Params) {
         name: data.tenant.name,
         logo: data.tenant.logo,
         logoUrl: data.tenant.logoUrl,
+        faviconUrl: data.tenant.faviconUrl,
         primaryColor: data.tenant.primaryColor,
         accentColor: data.tenant.accentColor,
+        backgroundColor: data.tenant.backgroundColor,
+        foregroundColor: data.tenant.foregroundColor,
+        driverPrimaryColor: data.tenant.driverPrimaryColor,
+        driverAccentColor: data.tenant.driverAccentColor,
+        driverBackgroundColor: data.tenant.driverBackgroundColor,
+        driverForegroundColor: data.tenant.driverForegroundColor,
       },
     });
   } catch (error) {
@@ -82,8 +89,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         name: result.tenant.name,
         logo: result.tenant.logo,
         logoUrl: result.tenant.logoUrl,
+        faviconUrl: result.tenant.faviconUrl,
         primaryColor: result.tenant.primaryColor,
         accentColor: result.tenant.accentColor,
+        backgroundColor: result.tenant.backgroundColor,
+        foregroundColor: result.tenant.foregroundColor,
+        driverPrimaryColor: result.tenant.driverPrimaryColor,
+        driverAccentColor: result.tenant.driverAccentColor,
+        driverBackgroundColor: result.tenant.driverBackgroundColor,
+        driverForegroundColor: result.tenant.driverForegroundColor,
       },
     });
   } catch (error) {

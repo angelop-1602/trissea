@@ -27,34 +27,32 @@ const SHELL_THEME: Record<MobileAuthTone, { vars: string; aura: string; glow: st
   default: {
     vars: '',
     aura:
-      'bg-[radial-gradient(circle_at_50%_12%,rgba(15,118,110,0.18),transparent_18rem)] dark:bg-[radial-gradient(circle_at_50%_12%,rgba(45,212,191,0.18),transparent_18rem)]',
+      'bg-[radial-gradient(circle_at_50%_12%,color-mix(in_oklab,var(--primary)_18%,transparent),transparent_18rem)]',
     glow: 'bg-primary/10 dark:bg-primary/16',
   },
   passenger: {
     vars: 'theme-passenger',
     aura:
-      'bg-[radial-gradient(circle_at_50%_12%,rgba(3,105,161,0.18),transparent_18rem)] dark:bg-[radial-gradient(circle_at_50%_12%,rgba(56,189,248,0.18),transparent_18rem)]',
-    glow: 'bg-sky-500/10 dark:bg-sky-400/16',
+      'bg-[radial-gradient(circle_at_50%_12%,color-mix(in_oklab,var(--primary)_18%,transparent),transparent_18rem)]',
+    glow: 'bg-primary/10 dark:bg-primary/16',
   },
   driver: {
     vars: 'theme-driver',
     aura:
-      'bg-[radial-gradient(circle_at_50%_12%,rgba(15,118,110,0.18),transparent_18rem)] dark:bg-[radial-gradient(circle_at_50%_12%,rgba(45,212,191,0.18),transparent_18rem)]',
-    glow: 'bg-teal-500/10 dark:bg-teal-400/16',
+      'bg-[radial-gradient(circle_at_50%_12%,color-mix(in_oklab,var(--primary)_18%,transparent),transparent_18rem)]',
+    glow: 'bg-primary/10 dark:bg-primary/16',
   },
   admin: {
-    vars:
-      '[--background:#F8FAFC] [--foreground:#0F172A] [--card:#FFFFFF] [--card-foreground:#0F172A] [--popover:#FFFFFF] [--popover-foreground:#0F172A] [--primary:#334155] [--primary-foreground:#F8FAFC] [--secondary:#0369A1] [--secondary-foreground:#F8FAFC] [--muted:#E2E8F0] [--muted-foreground:#475569] [--accent:#DBEAFE] [--accent-foreground:#0F172A] [--border:#CBD5E1] [--input:#E2E8F0] [--ring:#0369A1] dark:[--background:#0F172A] dark:[--foreground:#E2E8F0] dark:[--card:#162334] dark:[--card-foreground:#E2E8F0] dark:[--popover:#162334] dark:[--popover-foreground:#E2E8F0] dark:[--primary:#94A3B8] dark:[--primary-foreground:#0F172A] dark:[--secondary:#38BDF8] dark:[--secondary-foreground:#082F49] dark:[--muted:#1E293B] dark:[--muted-foreground:#94A3B8] dark:[--accent:#12354A] dark:[--accent-foreground:#E2E8F0] dark:[--border:#334155] dark:[--input:rgba(148,163,184,0.14)] dark:[--ring:#38BDF8]',
+    vars: '',
     aura:
-      'bg-[radial-gradient(circle_at_50%_12%,rgba(51,65,85,0.16),transparent_18rem)] dark:bg-[radial-gradient(circle_at_50%_12%,rgba(148,163,184,0.16),transparent_18rem)]',
-    glow: 'bg-slate-500/10 dark:bg-slate-400/16',
+      'bg-[radial-gradient(circle_at_50%_12%,color-mix(in_oklab,var(--primary)_16%,transparent),transparent_18rem)]',
+    glow: 'bg-primary/10 dark:bg-primary/16',
   },
   status: {
-    vars:
-      '[--background:#FFFBEB] [--foreground:#78350F] [--card:#FFFFFF] [--card-foreground:#78350F] [--popover:#FFFFFF] [--popover-foreground:#78350F] [--primary:#D97706] [--primary-foreground:#FFFBEB] [--secondary:#B45309] [--secondary-foreground:#FFFBEB] [--muted:#FEF3C7] [--muted-foreground:#92400E] [--accent:#FDE68A] [--accent-foreground:#78350F] [--border:#FCD34D] [--input:#FDE68A] [--ring:#D97706] dark:[--background:#29180A] dark:[--foreground:#FEF3C7] dark:[--card:#3A2410] dark:[--card-foreground:#FEF3C7] dark:[--popover:#3A2410] dark:[--popover-foreground:#FEF3C7] dark:[--primary:#F59E0B] dark:[--primary-foreground:#2A1704] dark:[--secondary:#FBBF24] dark:[--secondary-foreground:#2A1704] dark:[--muted:#442A12] dark:[--muted-foreground:#FCD34D] dark:[--accent:#5B3712] dark:[--accent-foreground:#FEF3C7] dark:[--border:#92400E] dark:[--input:rgba(245,158,11,0.14)] dark:[--ring:#F59E0B]',
+    vars: '[--primary:var(--warning)] [--primary-foreground:var(--warning-foreground)] [--ring:var(--warning)]',
     aura:
-      'bg-[radial-gradient(circle_at_50%_12%,rgba(217,119,6,0.16),transparent_18rem)] dark:bg-[radial-gradient(circle_at_50%_12%,rgba(245,158,11,0.18),transparent_18rem)]',
-    glow: 'bg-amber-500/10 dark:bg-amber-400/16',
+      'bg-[radial-gradient(circle_at_50%_12%,color-mix(in_oklab,var(--warning)_18%,transparent),transparent_18rem)]',
+    glow: 'bg-warning/10 dark:bg-warning/16',
   },
 };
 

@@ -48,7 +48,7 @@ import { useUserLocation } from '@/hooks/use-user-location';
 import { writeRideFeedbackPrompt } from '@/lib/ride-feedback-prompt';
 
 const FALLBACK_MAP_CENTER: [number, number] = [121.7268, 17.6136];
-const DRAFT_STORAGE_KEY = 'mobility:on-demand:draft';
+const DRAFT_STORAGE_KEY = 'trissea:on-demand:draft';
 const COLLAPSED_SEARCHING_RIDE_HEIGHT =
   'min(calc(100dvh - 0.75rem), calc(12.5rem + 6.85rem + env(safe-area-inset-bottom)))';
 interface GeocodeSearchResult {

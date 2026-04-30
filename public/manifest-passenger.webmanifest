@@ -1,22 +1,22 @@
 {
-  "name": "Mobility Passenger",
-  "short_name": "Mobility Passenger",
-  "description": "Passenger app for booking trips, managing reservations, and tracking ride activity.",
+  "name": "TRISSEA Passenger",
+  "short_name": "TRISSEA Passenger",
+  "description": "Passenger app for booking TRISSEA trips, managing reservations, and tracking ride activity.",
   "start_url": "/passenger",
   "scope": "/passenger",
   "display": "standalone",
-  "background_color": "#F0FDFA",
-  "theme_color": "#0F766E",
+  "background_color": "#f5f9f7",
+  "theme_color": "#14622e",
   "orientation": "portrait",
   "lang": "en",
   "icons": [
     {
-      "src": "/icon-light-32x32.png",
+      "src": "/trissea-icon-32.png",
       "sizes": "32x32",
       "type": "image/png"
     },
     {
-      "src": "/apple-icon.png",
+      "src": "/trissea-apple-icon.png",
       "sizes": "180x180",
       "type": "image/png"
     }
@@ -29,7 +29,7 @@
       "url": "/passenger/signup",
       "icons": [
         {
-          "src": "/icon-light-32x32.png",
+          "src": "/trissea-icon-32.png",
           "sizes": "32x32",
           "type": "image/png"
         }
@@ -42,7 +42,7 @@
       "url": "/passenger/login",
       "icons": [
         {
-          "src": "/icon-light-32x32.png",
+          "src": "/trissea-icon-32.png",
           "sizes": "32x32",
           "type": "image/png"
         }

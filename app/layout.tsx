@@ -3,9 +3,13 @@ import { Geist } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { StoreProvider } from '@/lib/store-context'
 import { PwaClient } from '@/components/pwa/pwa-client'
-import { PaletteStyleInjector } from '@/components/theme/palette-style-injector'
 import { ThemeProvider } from '@/components/theme-provider'
-import { BRAND_DESCRIPTION, PLATFORM_NAME } from '@/lib/brand'
+import {
+  BRAND_DESCRIPTION,
+  DEFAULT_BRAND_APPLE_ICON_PATH,
+  DEFAULT_BRAND_ICON_PATH,
+  PLATFORM_NAME,
+} from '@/lib/brand'
 import { DEFAULT_PRIMARY_HEX } from '@/lib/theme/constants'
 import { DEFAULT_THEME_MODE_STORAGE_KEY, THEME_MODE_STORAGE_KEY } from '@/lib/theme/palette-storage'
 import './globals.css'
@@ -44,20 +48,19 @@ const themeStorageBootstrap = `
 export const metadata: Metadata = {
   title: PLATFORM_NAME,
   description: BRAND_DESCRIPTION,
-  generator: 'v0.app',
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [
       {
-        url: '/icon-light-32x32.png',
+        url: DEFAULT_BRAND_ICON_PATH,
         media: '(prefers-color-scheme: light)',
       },
       {
-        url: '/icon-dark-32x32.png',
+        url: DEFAULT_BRAND_ICON_PATH,
         media: '(prefers-color-scheme: dark)',
       },
     ],
-    apple: '/apple-icon.png',
+    apple: DEFAULT_BRAND_APPLE_ICON_PATH,
   },
 }
 
@@ -77,13 +80,12 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <script
-          id="mobility-theme-bootstrap"
+          id="trissea-theme-bootstrap"
           dangerouslySetInnerHTML={{ __html: themeStorageBootstrap }}
         />
       </head>
       <body className={`${geist.className} bg-background text-foreground font-sans antialiased`}>
         <ThemeProvider>
-          <PaletteStyleInjector />
           <StoreProvider>
             <PwaClient />
             {children}

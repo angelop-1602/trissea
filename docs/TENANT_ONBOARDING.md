@@ -15,12 +15,12 @@
    - `provinceCode`
    - `regionCode`
    - `regionName`
-   - `logo` (default: `/mobility-logo.png`)
+   - `logo` (default: `/trissea-logo.png`)
 3. System provisions tenant admin account:
    - `role=admin`
    - `tenantId=<created tenant>`
    - email format: `admin.<province-slug>.<psgcCode>@<admin-domain>`
-   - temporary password: `mobility@YYYY`
+   - temporary password: `trissea@YYYY`
    - `mustResetPassword=true`
 4. Tenant admin seeds/configures TODA terminals for the tenant.
 5. Validate tenant isolation by accessing booking APIs with a non-tenant user.

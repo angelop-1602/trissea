@@ -1,8 +1,14 @@
 import type { PrismaClient, TenantStatus } from '@prisma/client';
-import { DEFAULT_BRAND_LOGO_PATH, normalizeBrandLogoPath } from '@/lib/brand';
+import { DEFAULT_BRAND_ICON_PATH, DEFAULT_BRAND_LOGO_PATH, normalizeBrandLogoPath } from '@/lib/brand';
 import { BookingError } from '@/lib/booking/errors';
 import { getTenantWorkspaceOverview } from '@/lib/dashboard/tenant-workspace';
-import { DEFAULT_ACCENT_HEX, DEFAULT_PRIMARY_HEX } from '@/lib/theme/constants';
+import {
+  DEFAULT_ACCENT_HEX,
+  DEFAULT_BACKGROUND_HEX,
+  DEFAULT_FOREGROUND_HEX,
+  DEFAULT_PRIMARY_HEX,
+} from '@/lib/theme/constants';
+import { normalizeHexColor, resolveTenantTheme } from '@/lib/theme/tenant-theme';
 
 type TenantDirectoryFilters = {
   query?: string;
@@ -145,8 +151,15 @@ export async function updatePlatformTenantProfile(params: {
   status?: TenantStatus;
   suspensionReason?: string | null;
   logoUrl?: string | null;
+  faviconUrl?: string | null;
   primaryColor?: string | null;
   accentColor?: string | null;
+  backgroundColor?: string | null;
+  foregroundColor?: string | null;
+  driverPrimaryColor?: string | null;
+  driverAccentColor?: string | null;
+  driverBackgroundColor?: string | null;
+  driverForegroundColor?: string | null;
 }) {
   const tenant = await params.prisma.tenant.findUnique({
     where: { id: params.tenantId },
@@ -177,11 +190,32 @@ export async function updatePlatformTenantProfile(params: {
     updateData.logoUrl = nextLogoUrl || DEFAULT_BRAND_LOGO_PATH;
     updateData.logo = nextLogoUrl || DEFAULT_BRAND_LOGO_PATH;
   }
+  if (params.faviconUrl !== undefined) {
+    updateData.faviconUrl = params.faviconUrl?.trim() || null;
+  }
   if (params.primaryColor !== undefined) {
-    updateData.primaryColor = params.primaryColor?.trim() || null;
+    updateData.primaryColor = normalizeHexColor(params.primaryColor) ?? null;
   }
   if (params.accentColor !== undefined) {
-    updateData.accentColor = params.accentColor?.trim() || null;
+    updateData.accentColor = normalizeHexColor(params.accentColor) ?? null;
+  }
+  if (params.backgroundColor !== undefined) {
+    updateData.backgroundColor = normalizeHexColor(params.backgroundColor) ?? null;
+  }
+  if (params.foregroundColor !== undefined) {
+    updateData.foregroundColor = normalizeHexColor(params.foregroundColor) ?? null;
+  }
+  if (params.driverPrimaryColor !== undefined) {
+    updateData.driverPrimaryColor = normalizeHexColor(params.driverPrimaryColor) ?? null;
+  }
+  if (params.driverAccentColor !== undefined) {
+    updateData.driverAccentColor = normalizeHexColor(params.driverAccentColor) ?? null;
+  }
+  if (params.driverBackgroundColor !== undefined) {
+    updateData.driverBackgroundColor = normalizeHexColor(params.driverBackgroundColor) ?? null;
+  }
+  if (params.driverForegroundColor !== undefined) {
+    updateData.driverForegroundColor = normalizeHexColor(params.driverForegroundColor) ?? null;
   }
 
   const updatedTenant = await params.prisma.tenant.update({
@@ -194,20 +228,25 @@ export async function updatePlatformTenantProfile(params: {
   });
 
   if (settings) {
+    const resolvedTheme = resolveTenantTheme(updatedTenant);
     const normalized = {
       ...settings,
       branding: {
         ...(settings.branding as Record<string, unknown>),
         displayName: updatedTenant.name,
         logoUrl: normalizeBrandLogoPath(updatedTenant.logoUrl || updatedTenant.logo),
-        primaryColor:
-          updatedTenant.primaryColor ||
-          ((settings.branding as Record<string, unknown>).primaryColor as string | undefined) ||
-          DEFAULT_PRIMARY_HEX,
-        accentColor:
-          updatedTenant.accentColor ||
-          ((settings.branding as Record<string, unknown>).accentColor as string | undefined) ||
-          DEFAULT_ACCENT_HEX,
+        faviconUrl:
+          updatedTenant.faviconUrl ||
+          ((settings.branding as Record<string, unknown>).faviconUrl as string | undefined) ||
+          DEFAULT_BRAND_ICON_PATH,
+        primaryColor: updatedTenant.primaryColor || resolvedTheme.tenant.primary || DEFAULT_PRIMARY_HEX,
+        accentColor: updatedTenant.accentColor || resolvedTheme.tenant.accent || DEFAULT_ACCENT_HEX,
+        backgroundColor: updatedTenant.backgroundColor || resolvedTheme.tenant.background || DEFAULT_BACKGROUND_HEX,
+        foregroundColor: updatedTenant.foregroundColor || resolvedTheme.tenant.foreground || DEFAULT_FOREGROUND_HEX,
+        driverPrimaryColor: updatedTenant.driverPrimaryColor || resolvedTheme.driver.primary,
+        driverAccentColor: updatedTenant.driverAccentColor || resolvedTheme.driver.accent,
+        driverBackgroundColor: updatedTenant.driverBackgroundColor || resolvedTheme.driver.background,
+        driverForegroundColor: updatedTenant.driverForegroundColor || resolvedTheme.driver.foreground,
       },
     };
 
@@ -227,16 +266,30 @@ export async function updatePlatformTenantProfile(params: {
       suspendedAt: tenant.suspendedAt,
       suspensionReason: tenant.suspensionReason,
       logoUrl: tenant.logoUrl,
+      faviconUrl: tenant.faviconUrl,
       primaryColor: tenant.primaryColor,
       accentColor: tenant.accentColor,
+      backgroundColor: tenant.backgroundColor,
+      foregroundColor: tenant.foregroundColor,
+      driverPrimaryColor: tenant.driverPrimaryColor,
+      driverAccentColor: tenant.driverAccentColor,
+      driverBackgroundColor: tenant.driverBackgroundColor,
+      driverForegroundColor: tenant.driverForegroundColor,
     },
     after: {
       status: updatedTenant.status,
       suspendedAt: updatedTenant.suspendedAt,
       suspensionReason: updatedTenant.suspensionReason,
       logoUrl: updatedTenant.logoUrl,
+      faviconUrl: updatedTenant.faviconUrl,
       primaryColor: updatedTenant.primaryColor,
       accentColor: updatedTenant.accentColor,
+      backgroundColor: updatedTenant.backgroundColor,
+      foregroundColor: updatedTenant.foregroundColor,
+      driverPrimaryColor: updatedTenant.driverPrimaryColor,
+      driverAccentColor: updatedTenant.driverAccentColor,
+      driverBackgroundColor: updatedTenant.driverBackgroundColor,
+      driverForegroundColor: updatedTenant.driverForegroundColor,
     },
     nextStatus,
   };

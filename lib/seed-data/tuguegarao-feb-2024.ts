@@ -172,7 +172,7 @@ const STAFF_ACCOUNT_BASE: Array<Omit<StaffSeedSpec, 'email'>> = [
     id: stableOpaqueId('user', 'staff-owner'),
     label: 'Tenant Owner',
     name: 'Rosario Mae Alcantara',
-    password: 'Mobility!Owner2024',
+    password: 'TRISSEA!Owner2024',
     roleKey: 'tenant_owner',
     isActive: true,
     createdAt: manilaDate(1, 8, 10),
@@ -183,7 +183,7 @@ const STAFF_ACCOUNT_BASE: Array<Omit<StaffSeedSpec, 'email'>> = [
     id: stableOpaqueId('user', 'staff-admin'),
     label: 'Tenant Admin',
     name: 'Marc Eugene Villaflor',
-    password: 'Mobility!Admin2024',
+    password: 'TRISSEA!Admin2024',
     roleKey: 'tenant_admin',
     isActive: true,
     createdAt: manilaDate(1, 8, 20),
@@ -194,7 +194,7 @@ const STAFF_ACCOUNT_BASE: Array<Omit<StaffSeedSpec, 'email'>> = [
     id: stableOpaqueId('user', 'staff-dispatcher'),
     label: 'Dispatcher',
     name: 'Leah Joy Briones',
-    password: 'Mobility!Dispatch2024',
+    password: 'TRISSEA!Dispatch2024',
     roleKey: 'dispatcher',
     isActive: true,
     createdAt: manilaDate(5, 7, 30),
@@ -205,7 +205,7 @@ const STAFF_ACCOUNT_BASE: Array<Omit<StaffSeedSpec, 'email'>> = [
     id: stableOpaqueId('user', 'staff-reports'),
     label: 'Reports Viewer',
     name: 'Noel Patrick Rigor',
-    password: 'Mobility!Reports2024',
+    password: 'TRISSEA!Reports2024',
     roleKey: 'reports_viewer',
     isActive: false,
     createdAt: manilaDate(7, 9, 0),
@@ -482,7 +482,7 @@ const RESERVATION_BASE_SPECS = [
 const ACTIVE_PASSENGER_RIDE_STATUS_SET = new Set(['searching', 'matched', 'en_route', 'arrived', 'in_trip']);
 const ACTIVE_DRIVER_RIDE_STATUS_SET = new Set(['matched', 'en_route', 'arrived', 'in_trip']);
 const ACTIVE_RESERVATION_STATUS_SET = new Set(['confirmed', 'arrived']);
-const TUGUE_STAFF_EMAIL_STEM = 'tuguegaraocity.mobility';
+const TUGUE_STAFF_EMAIL_STEM = 'tuguegaraocity.trissea';
 
 export async function seedTuguegaraoFebruary2024(params: {
   prisma: PrismaClient;
@@ -1438,7 +1438,7 @@ function buildTenantAuditLogs(
       targetType: 'TenantSettings',
       targetId: tenantSettingsRecordId(tenantId),
       beforeJson: { primaryColor: '#0f172a' } as Prisma.InputJsonValue,
-      afterJson: { primaryColor: '#0f766e', accentColor: '#f59e0b' } as Prisma.InputJsonValue,
+      afterJson: { primaryColor: '#14622e', accentColor: '#fecc04' } as Prisma.InputJsonValue,
       createdAt: manilaDate(22, 15, 5),
     },
     {

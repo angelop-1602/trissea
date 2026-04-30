@@ -1,12 +1,12 @@
 import { getPrisma } from './prisma';
 
 const globalForPrismaCompat = globalThis as unknown as {
-  __mobilityPhoneE164CompatCheckedAt: number | undefined;
+  __trisseaPhoneE164CompatCheckedAt: number | undefined;
 };
 
 export async function ensurePhoneE164Compatibility(prisma = getPrisma()) {
   const now = Date.now();
-  const lastCheckedAt = globalForPrismaCompat.__mobilityPhoneE164CompatCheckedAt ?? 0;
+  const lastCheckedAt = globalForPrismaCompat.__trisseaPhoneE164CompatCheckedAt ?? 0;
 
   if (now - lastCheckedAt < 60_000) {
     return;
@@ -27,6 +27,6 @@ export async function ensurePhoneE164Compatibility(prisma = getPrisma()) {
     WHERE "phoneE164" IS NULL OR "phoneE164" = ''
   `);
 
-  globalForPrismaCompat.__mobilityPhoneE164CompatCheckedAt = now;
+  globalForPrismaCompat.__trisseaPhoneE164CompatCheckedAt = now;
 }
 

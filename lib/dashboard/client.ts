@@ -462,10 +462,27 @@ export interface AdminTenantTeamData {
 
 export type TenantSettingsShape = SharedTenantSettingsShape;
 
+type TenantBrandingPick = Pick<
+  Tenant,
+  | 'id'
+  | 'name'
+  | 'logo'
+  | 'logoUrl'
+  | 'faviconUrl'
+  | 'primaryColor'
+  | 'accentColor'
+  | 'backgroundColor'
+  | 'foregroundColor'
+  | 'driverPrimaryColor'
+  | 'driverAccentColor'
+  | 'driverBackgroundColor'
+  | 'driverForegroundColor'
+>;
+
 export interface AdminTenantSettingsData {
   settings: TenantSettingsShape;
   currentUserPermissions: string[];
-  tenant: Pick<Tenant, 'id' | 'name' | 'logo' | 'logoUrl' | 'primaryColor' | 'accentColor'>;
+  tenant: TenantBrandingPick;
 }
 
 export interface SuperadminOverviewData {
@@ -532,8 +549,15 @@ export interface SuperadminTenantDetailData {
     | 'suspensionReason'
     | 'logo'
     | 'logoUrl'
+    | 'faviconUrl'
     | 'primaryColor'
     | 'accentColor'
+    | 'backgroundColor'
+    | 'foregroundColor'
+    | 'driverPrimaryColor'
+    | 'driverAccentColor'
+    | 'driverBackgroundColor'
+    | 'driverForegroundColor'
   >;
   stats: {
     passengers: number;
@@ -630,7 +654,7 @@ export interface SuperadminSupportAccessData {
 
 export interface SuperadminTenantSettingsData {
   settings: TenantSettingsShape;
-  tenant: Pick<Tenant, 'id' | 'name' | 'logo' | 'logoUrl' | 'primaryColor' | 'accentColor'>;
+  tenant: TenantBrandingPick;
 }
 
 export interface SuperadminTenantRidesData {
@@ -1029,8 +1053,15 @@ export function updateSuperadminTenant(
     status?: 'active' | 'suspended';
     suspensionReason?: string | null;
     logoUrl?: string | null;
+    faviconUrl?: string | null;
     primaryColor?: string | null;
     accentColor?: string | null;
+    backgroundColor?: string | null;
+    foregroundColor?: string | null;
+    driverPrimaryColor?: string | null;
+    driverAccentColor?: string | null;
+    driverBackgroundColor?: string | null;
+    driverForegroundColor?: string | null;
   }
 ) {
   return requestJson<{ tenant: Tenant }>(

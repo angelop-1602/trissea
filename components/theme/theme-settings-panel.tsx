@@ -6,6 +6,7 @@ import { useTheme } from 'next-themes';
 import {
   DEFAULT_DARK_PALETTE,
   DEFAULT_LIGHT_PALETTE,
+  BRAND_TOKEN_LOCKED,
   EDITABLE_PALETTE_TOKEN_NAMES,
   type EditablePaletteTokenName,
   type ThemeMode,
@@ -267,10 +268,10 @@ export function ThemeSettingsPanel() {
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">Brand Token Locked</Badge>
             <p className="text-sm">
-              `--brand`: <span className="font-medium">oklch(0.865 0.143 50.814)</span>
+              `--brand`: <span className="font-medium">{BRAND_TOKEN_LOCKED.brand}</span>
             </p>
             <p className="text-sm">
-              `--brand-foreground`: <span className="font-medium">oklch(0.145 0.001 0)</span>
+              `--brand-foreground`: <span className="font-medium">{BRAND_TOKEN_LOCKED.foreground}</span>
             </p>
           </div>
         </div>

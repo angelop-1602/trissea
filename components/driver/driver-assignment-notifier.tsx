@@ -23,7 +23,7 @@ interface DriverAssignmentNotifierProps {
   driverId?: string | null;
 }
 
-const STORAGE_PREFIX = 'mobility:driver-assignment-notifications';
+const STORAGE_PREFIX = 'trissea:driver-assignment-notifications';
 
 function getStorageKey(driverId?: string | null) {
   return `${STORAGE_PREFIX}:${driverId ?? 'unknown'}:seen`;

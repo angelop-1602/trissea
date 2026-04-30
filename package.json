@@ -1,5 +1,5 @@
 {
-  "name": "mobility",
+  "name": "trissea",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -99,21 +99,21 @@
     "tw-animate-css": "1.3.3",
     "typescript": "^5.9.3"
   },
-  "description": "Production-focused Mobility platform for multi-tenant tricycle booking and TODA queue operations built with Next.js, Supabase, and Prisma.",
+  "description": "TRISSEA platform for Tuguegarao City tricycle booking, driver operations, and tenant-managed TODA queues built with Next.js, Supabase, and Prisma.",
   "main": "index.js",
   "directories": {
     "lib": "lib"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/angelop-1602/Mobility.git"
+    "url": "git+https://github.com/angelop-1602/trissea.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/angelop-1602/Mobility/issues"
+    "url": "https://github.com/angelop-1602/trissea/issues"
   },
-  "homepage": "https://github.com/angelop-1602/Mobility#readme"
+  "homepage": "https://github.com/angelop-1602/trissea#readme"
 }

@@ -64,7 +64,7 @@ test('sanitizePalette always keeps locked brand tokens', () => {
   assert.equal(palette['brand-foreground'], DEFAULT_LIGHT_PALETTE['brand-foreground']);
 });
 
-test('readPaletteFromStorage uses the Mobility palette namespace', () => {
+test('readPaletteFromStorage uses the TRISSEA palette namespace', () => {
   const storage = createStorage({
     [LIGHT_PALETTE_STORAGE_KEY]: JSON.stringify({
       background: '#ffffff',
@@ -77,7 +77,7 @@ test('readPaletteFromStorage uses the Mobility palette namespace', () => {
   assert.equal(palette.background, '#ffffff');
 });
 
-test('migrateThemeModeStorage moves the default theme mode into the Mobility namespace', () => {
+test('migrateThemeModeStorage moves the default theme mode into the TRISSEA namespace', () => {
   const storage = createStorage({
     [DEFAULT_THEME_MODE_STORAGE_KEY]: 'dark',
   });

@@ -13,7 +13,7 @@ interface UseUserLocationOptions {
   minimumDistanceMeters?: number;
 }
 
-const LAST_LOCATION_STORAGE_KEY = 'mobility:user-location:last';
+const LAST_LOCATION_STORAGE_KEY = 'trissea:user-location:last';
 
 function isValidLocation(value: unknown): value is UserLocation {
   if (!value || typeof value !== 'object') {

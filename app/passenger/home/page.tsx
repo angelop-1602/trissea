@@ -1,46 +1,84 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import { ArrowRight, CalendarClock, Clock3, Compass, MapPinned, Navigation, Route } from 'lucide-react';
-import type { TODATerminal } from '@prisma/client';
-import { RideFeedbackModal } from '@/components/ride/ride-feedback-modal';
-import { useStore } from '@/lib/store-context';
-import { PassengerAppShell } from '@/components/passenger/passenger-app-shell';
-import { Button } from '@/components/ui/button';
-import { getPassengerHomeData, type PassengerHomeData } from '@/lib/dashboard/client';
-import { getTodaTerminals, submitRideFeedback } from '@/lib/booking/client';
-import { useBookingRealtime } from '@/hooks/use-booking-realtime';
-import { useUserLocation } from '@/hooks/use-user-location';
-import { InlineErrorState, PageLoadingState } from '@/components/page-state';
-import { StatusBadge } from '@/components/status-badge';
-import { PassengerMetricPill } from '@/components/passenger/passenger-surfaces';
+import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import {
+  Bell,
+  Bike,
+  CalendarDays,
+  ChevronDown,
+  ChevronRight,
+  CircleDot,
+  Clock3,
+  GraduationCap,
+  MapPin,
+  ShoppingBag,
+  Star,
+  UsersRound,
+  Zap,
+} from "lucide-react";
+import type { TODATerminal } from "@prisma/client";
+import { RideFeedbackModal } from "@/components/ride/ride-feedback-modal";
+import { useStore } from "@/lib/store-context";
+import { PassengerAppShell } from "@/components/passenger/passenger-app-shell";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  getPassengerHomeData,
+  type PassengerHomeData,
+} from "@/lib/dashboard/client";
+import { getTodaTerminals, submitRideFeedback } from "@/lib/booking/client";
+import { useBookingRealtime } from "@/hooks/use-booking-realtime";
+import { useUserLocation } from "@/hooks/use-user-location";
+import { InlineErrorState, PageLoadingState } from "@/components/page-state";
+import { StatusBadge } from "@/components/status-badge";
 import {
   clearRideFeedbackPrompt,
   readRideFeedbackPrompt,
   type RideFeedbackPrompt,
-} from '@/lib/ride-feedback-prompt';
+} from "@/lib/ride-feedback-prompt";
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('en-PH', {
-    style: 'currency',
-    currency: 'PHP',
-    maximumFractionDigits: 0,
-  }).format(value);
-}
+const RIDE_OPTIONS = [
+  {
+    title: "Regular",
+    subtitle: "Quick ride",
+    imageSrc: "/mobile-landing-hero-tricycle.png",
+    cardClassName: "border-primary/20 bg-primary/[0.035]",
+    imageClassName: "scale-[1.08]",
+  },
+  {
+    title: "Shared",
+    subtitle: "Lower fare",
+    imageSrc: "/mobile-landing-hero-tricycle.png",
+    cardClassName: "border-accent/35 bg-accent/[0.07]",
+    imageClassName: "scale-[1.03]",
+  },
+  {
+    title: "Special",
+    subtitle: "Whole unit",
+    imageSrc: "/mobile-landing-hero-tricycle.png",
+    cardClassName: "border-accent/45 bg-accent/[0.12]",
+    imageClassName: "scale-[1.03]",
+  },
+] as const;
 
-function formatDateTimeShort(value: string | Date) {
-  const date = value instanceof Date ? value : new Date(value);
-
-  return new Intl.DateTimeFormat('en-PH', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
-}
+const RECENT_PLACES = [
+  {
+    name: "SM Center Tuguegarao",
+    address: "Diversion Road, Tuguegarao City",
+    icon: ShoppingBag,
+  },
+  {
+    name: "St. Paul University Philippines",
+    address: "Caritan, Tuguegarao City",
+    icon: GraduationCap,
+  },
+] as const;
 
 function haversineKm(
   from: { latitude: number; longitude: number },
-  to: { latitude: number; longitude: number }
+  to: { latitude: number; longitude: number },
 ) {
   const earthRadiusKm = 6371;
   const dLat = ((to.latitude - from.latitude) * Math.PI) / 180;
@@ -56,46 +94,21 @@ function haversineKm(
   return earthRadiusKm * c;
 }
 
-function formatRideSubtitle(status: string) {
-  switch (status) {
-    case 'searching':
-      return 'Your request is queued at the nearest TODA terminal.';
-    case 'matched':
-      return 'A driver has been matched and is preparing to head to you.';
-    case 'en_route':
-      return 'Your driver is on the way to your pickup.';
-    case 'arrived':
-      return 'Your driver has arrived at the pickup point.';
-    case 'in_trip':
-      return 'Your trip is currently in progress.';
-    default:
-      return 'Your latest ride state is available here.';
-  }
+function getFirstName(value: string | null | undefined) {
+  return value?.trim().split(/\s+/)[0] || "Rita";
 }
 
-function formatReservationSubtitle(status: string) {
-  switch (status) {
-    case 'arrived':
-      return 'Your reservation is marked arrived at the terminal.';
-    case 'confirmed':
-    default:
-      return 'Your reservation is active and waiting in the TODA queue.';
-  }
+function getInitials(value: string | null | undefined) {
+  const parts = value?.trim().split(/\s+/).filter(Boolean).slice(0, 2) ?? [];
+  return parts.map((part) => part[0]?.toUpperCase() ?? "").join("") || "R";
 }
 
-function HomeSectionTitle({
-  title,
-  action,
-}: {
-  title: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 px-1">
-      <h2 className="text-sm font-semibold tracking-tight text-foreground">{title}</h2>
-      {action}
-    </div>
-  );
+function formatEta(distanceKm: number | null) {
+  if (distanceKm === null) {
+    return "4 min";
+  }
+
+  return `${Math.max(4, Math.round(distanceKm * 6))} min`;
 }
 
 export default function PassengerHomePage() {
@@ -103,28 +116,40 @@ export default function PassengerHomePage() {
   const [homeData, setHomeData] = useState<PassengerHomeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [nearestTerminal, setNearestTerminal] = useState<TODATerminal | null>(null);
-  const [nearestTerminalDistance, setNearestTerminalDistance] = useState<number | null>(null);
-  const [terminalContextError, setTerminalContextError] = useState<string | null>(null);
-  const [feedbackPrompt, setFeedbackPrompt] = useState<RideFeedbackPrompt | null>(null);
+  const [nearestTerminal, setNearestTerminal] = useState<TODATerminal | null>(
+    null,
+  );
+  const [nearestTerminalDistance, setNearestTerminalDistance] = useState<
+    number | null
+  >(null);
+  const [terminalContextError, setTerminalContextError] = useState<
+    string | null
+  >(null);
+  const [feedbackPrompt, setFeedbackPrompt] =
+    useState<RideFeedbackPrompt | null>(null);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+
   const loadingRef = useRef(false);
   const terminalLoadingRef = useRef(false);
   const feedbackPromptLoadedRef = useRef(false);
-  const userLocation = useUserLocation({ enabled: currentUser?.role === 'passenger' });
 
-  const canLoad = currentUser?.role === 'passenger';
+  const userLocation = useUserLocation({
+    enabled: currentUser?.role === "passenger",
+  });
+  const canLoad = currentUser?.role === "passenger";
 
   const loadHomeData = useCallback(async () => {
     if (!canLoad || loadingRef.current) return;
 
     loadingRef.current = true;
+
     try {
       const response = await getPassengerHomeData();
       setHomeData(response);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load passenger home.');
+      console.error("Failed to load passenger home:", err);
+      setError("We could not load some home details right now.");
     } finally {
       loadingRef.current = false;
       setLoading(false);
@@ -165,9 +190,10 @@ export default function PassengerHomePage() {
       setNearestTerminalDistance(nearest.distanceKm);
       setTerminalContextError(null);
     } catch (err) {
+      console.error("Failed to load passenger terminal context:", err);
       setNearestTerminal(null);
       setNearestTerminalDistance(null);
-      setTerminalContextError(err instanceof Error ? err.message : 'Failed to load terminal context.');
+      setTerminalContextError("Terminal details are temporarily unavailable.");
     } finally {
       terminalLoadingRef.current = false;
     }
@@ -184,7 +210,8 @@ export default function PassengerHomePage() {
 
     feedbackPromptLoadedRef.current = true;
     const prompt = readRideFeedbackPrompt();
-    if (prompt?.role !== 'passenger') {
+
+    if (prompt?.role !== "passenger") {
       return;
     }
 
@@ -207,44 +234,48 @@ export default function PassengerHomePage() {
   useBookingRealtime({
     enabled: Boolean(canLoad),
     onUpdate: (payload) => {
-      if (payload.type === 'ride.updated' || payload.type === 'terminal.updated') {
+      if (
+        payload.type === "ride.updated" ||
+        payload.type === "terminal.updated"
+      ) {
         void loadHomeData();
-        if (payload.type === 'terminal.updated') {
+
+        if (payload.type === "terminal.updated") {
           void loadNearestTerminal();
         }
       }
     },
   });
 
-  if (!currentUser || currentUser.role !== 'passenger' || loading) {
+  if (!currentUser || currentUser.role !== "passenger" || loading) {
     return <PageLoadingState tone="passenger" />;
   }
 
   const activeRide = homeData?.activeRide ?? null;
   const activeReservation = homeData?.activeReservations?.[0] ?? null;
-  const latestRide =
-    homeData?.recentRides.find((ride) => ride.status === 'completed' || ride.status === 'cancelled') ?? null;
   const profileName = homeData?.profile?.name ?? currentUser.name;
+  const firstName = getFirstName(profileName);
 
-  const heroTitle = activeRide
-    ? 'Ride in progress'
-    : activeReservation
-      ? 'Active TODA reservation'
-      : `Ready when you are, ${profileName}`;
+  const terminalName =
+    nearestTerminal?.name ??
+    activeReservation?.TODATerminal.name ??
+    "Centro 8 TODA";
 
-  const heroCopy = activeRide
-    ? 'Resume your live ride or review the route details below.'
-    : activeReservation
-      ? 'Your queue position is active. Check the TODA details or keep an eye on your boarding state.'
-      : 'Book a ride, open TODA, or review your recent activity.';
+  const queueNumber =
+    activeReservation?.queuePosition ?? nearestTerminal?.currentQueued ?? 12;
+
+  const tricyclesAvailable = nearestTerminal
+    ? Math.max(nearestTerminal.capacity - nearestTerminal.currentQueued, 0)
+    : 8;
+
+  const eta = formatEta(nearestTerminalDistance);
 
   return (
     <PassengerAppShell
       title="Home"
-      subtitle="Live ride, queue, and terminal updates."
       topContext="Home"
-      headerVariant="compact"
-      headerSurface="minimal"
+      showHeader={false}
+      contentClassName="!space-y-3 !px-3.5 !pb-24 !pt-0 sm:!px-4"
     >
       <RideFeedbackModal
         open={isFeedbackModalOpen && Boolean(feedbackPrompt)}
@@ -255,237 +286,344 @@ export default function PassengerHomePage() {
         subjectName={feedbackPrompt?.subjectName}
         onSubmit={async (input) => {
           if (!feedbackPrompt) return;
+
           await submitRideFeedback(feedbackPrompt.rideId, input);
           setIsFeedbackModalOpen(false);
           setFeedbackPrompt(null);
           await loadHomeData();
         }}
       />
-      <section className="space-y-4 rounded-[2rem] border border-primary/15 bg-primary/6 px-4 py-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Current state</p>
-            <h1 className="text-2xl font-semibold tracking-tight">{heroTitle}</h1>
-            <p className="text-sm text-muted-foreground">{heroCopy}</p>
-          </div>
-          {activeRide ? <StatusBadge status={activeRide.status} /> : null}
-          {!activeRide && activeReservation ? <StatusBadge status={activeReservation.status} /> : null}
-        </div>
 
-        <div className="flex flex-wrap gap-2">
-          {activeRide ? (
-            <>
-              <Link href="/passenger/on-demand" className="flex-1 min-w-[10rem]">
-                <Button className="h-11 w-full rounded-full bg-primary">Resume Ride</Button>
-              </Link>
-              <Link href="/passenger/toda" className="flex-1 min-w-[10rem]">
-                <Button variant="outline" className="h-11 w-full rounded-full">
-                  Open TODA
-                </Button>
-              </Link>
-            </>
-          ) : activeReservation ? (
-            <>
-              <Link href="/passenger/toda" className="flex-1 min-w-[10rem]">
-                <Button className="h-11 w-full rounded-full bg-primary">Open TODA</Button>
-              </Link>
-              <Link href="/passenger/on-demand" className="flex-1 min-w-[10rem]">
-                <Button variant="outline" className="h-11 w-full rounded-full">
-                  Book Ride
-                </Button>
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link href="/passenger/on-demand" className="flex-1 min-w-[10rem]">
-                <Button className="h-11 w-full rounded-full bg-primary">Book Ride</Button>
-              </Link>
-              <Link href="/passenger/toda" className="flex-1 min-w-[10rem]">
-                <Button variant="outline" className="h-11 w-full rounded-full">
-                  Open TODA
-                </Button>
-              </Link>
-            </>
-          )}
-        </div>
-      </section>
-
-      {error ? <InlineErrorState message={error} onRetry={() => void loadHomeData()} /> : null}
-
-      {activeRide ? (
-        <section className="space-y-3">
-          <HomeSectionTitle title="Active ride" action={<StatusBadge status={activeRide.status} />} />
-          <div className="space-y-4 rounded-[1.85rem] border border-border/60 bg-background/58 px-4 py-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1">
-                <p className="text-sm font-medium">{activeRide.pickupLocation}</p>
-                <p className="text-xs text-muted-foreground">to {activeRide.dropoffLocation}</p>
-              </div>
-              <ArrowRight className="mt-1 h-4 w-4 text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground">{formatRideSubtitle(activeRide.status)}</p>
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              <PassengerMetricPill label="Distance" value={`${activeRide.distance} km`} />
-              <PassengerMetricPill label="ETA" value={`${activeRide.estimatedDuration} min`} />
-              <PassengerMetricPill label="Fare" value={formatCurrency(activeRide.fare)} />
-            </div>
-            <Link href="/passenger/on-demand">
-              <Button className="h-11 w-full rounded-full">
-                Resume Ride
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-        </section>
-      ) : null}
-
-      {activeReservation ? (
-        <section className="space-y-3">
-          <HomeSectionTitle title="Active reservation" action={<StatusBadge status={activeReservation.status} />} />
-          <div className="space-y-4 rounded-[1.85rem] border border-border/60 bg-background/58 px-4 py-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1">
-                <p className="text-sm font-medium">{activeReservation.TODATerminal.name}</p>
-                <p className="text-xs text-muted-foreground">{activeReservation.TODATerminal.location}</p>
-              </div>
-              <ArrowRight className="mt-1 h-4 w-4 text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground">{formatReservationSubtitle(activeReservation.status)}</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <PassengerMetricPill
-                label="Queue"
-                value={
-                  <span className="inline-flex items-center gap-1">
-                    <Route className="h-3.5 w-3.5 text-primary" />
-                    #{activeReservation.queuePosition}
-                  </span>
-                }
-              />
-              <PassengerMetricPill
-                label="Boarding"
-                value={
-                  <span className="inline-flex items-center gap-1">
-                    <CalendarClock className="h-3.5 w-3.5 text-primary" />
-                    {new Date(activeReservation.boardingTime).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                }
-              />
-            </div>
-            <Link href="/passenger/toda">
-              <Button variant="outline" className="h-11 w-full rounded-full">
-                Open TODA
-              </Button>
-            </Link>
-          </div>
-        </section>
-      ) : null}
-
-      <section className="space-y-3">
-        <HomeSectionTitle
-          title="Nearest TODA"
-          action={
-            <Link href="/passenger/toda">
-              <Button variant="ghost" size="sm" className="h-8 rounded-full px-3 text-xs">
-                Open TODA
-              </Button>
-            </Link>
-          }
-        />
-        <div className="space-y-4 rounded-[1.85rem] border border-border/60 bg-background/58 px-4 py-4">
-          {nearestTerminal ? (
-            <>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">{nearestTerminal.name}</p>
-                <p className="text-xs text-muted-foreground">{nearestTerminal.location}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <PassengerMetricPill
-                  label="Distance"
-                  value={
-                    <span className="inline-flex items-center gap-1">
-                      <Navigation className="h-3.5 w-3.5 text-primary" />
-                      {nearestTerminalDistance !== null ? `${nearestTerminalDistance.toFixed(2)} km` : 'Nearby'}
-                    </span>
-                  }
-                />
-                <PassengerMetricPill
-                  label="Queue"
-                  value={
-                    <span className="inline-flex items-center gap-1">
-                      <Clock3 className="h-3.5 w-3.5 text-primary" />
-                      {nearestTerminal.currentQueued} / {nearestTerminal.capacity}
-                    </span>
-                  }
-                />
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Link href="/passenger/toda" className="flex-1 min-w-[10rem]">
-                  <Button variant="outline" className="h-11 w-full rounded-full">
-                    <Compass className="mr-2 h-4 w-4" />
-                    Open TODA
-                  </Button>
-                </Link>
-                {!activeRide ? (
-                  <Link href="/passenger/on-demand" className="flex-1 min-w-[10rem]">
-                    <Button className="h-11 w-full rounded-full">
-                      <MapPinned className="mr-2 h-4 w-4" />
-                      Book Ride
-                    </Button>
-                  </Link>
-                ) : null}
-              </div>
-            </>
-          ) : userLocation ? (
-            <p className="text-sm text-muted-foreground">
-              No TODA terminal is currently available near your location.
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Enable location access to see your nearest TODA terminal.
-            </p>
-          )}
-
-          {terminalContextError ? <p className="text-xs text-muted-foreground">{terminalContextError}</p> : null}
-        </div>
-      </section>
-
-      {!activeRide && latestRide ? (
-        <section className="space-y-3">
-          <HomeSectionTitle
-            title="Latest activity"
-            action={
-              <Link href="/passenger/activity">
-                <Button variant="ghost" size="sm" className="h-8 rounded-full px-3 text-xs">
-                  View all
-                </Button>
-              </Link>
-            }
+      <section className="relative isolate -mx-3.5 overflow-hidden px-3.5 pb-4 pt-4 sm:-mx-4 sm:px-4">
+        <div className="pointer-events-none absolute right-[-1.8rem] top-[5.8rem] z-0 h-[10.75rem] w-[62%] max-w-[18.5rem] sm:right-[-1rem] sm:h-[12rem] sm:w-[58%]">
+          <Image
+            src="/mobile-hero-img.png"
+            alt=""
+            fill
+            priority
+            sizes="(max-width: 640px) 62vw, 300px"
+            className="object-contain object-right-center"
           />
-          <div className="rounded-[1.85rem] border border-border/60 bg-background/58 px-4 py-4">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-sm font-medium">{latestRide.pickupLocation}</p>
-                <p className="text-xs text-muted-foreground">to {latestRide.dropoffLocation}</p>
-              </div>
-              <StatusBadge status={latestRide.status} />
+        </div>
+
+        <div className="relative z-20 flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-black/5">
+              <Image
+                src="/trissea-logo.png"
+                alt="TRISSEA"
+                fill
+                sizes="44px"
+                className="object-contain p-1"
+              />
             </div>
-            <p className="text-xs text-muted-foreground">
-              {formatDateTimeShort(latestRide.createdAt)} | {formatCurrency(latestRide.fare)}
-            </p>
-            <Link href="/passenger/activity" className="mt-3 inline-flex">
-              <Button variant="ghost" size="sm" className="h-8 rounded-full px-3 text-xs">
-                Open Activity
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
+
+            <div className="min-w-0">
+              <p className="truncate text-[9px] font-extrabold uppercase tracking-[0.08em] text-primary">
+                Tuguegarao City
+              </p>
+              <p className="truncate text-[1.65rem] font-black uppercase leading-none tracking-tight text-primary [text-shadow:1.2px_1.2px_0_var(--accent)]">
+                TRISSEA
+              </p>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href="/passenger/activity"
+              className="relative flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white text-foreground shadow-sm transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="Open trips and alerts"
+            >
+              <Bell className="h-4 w-4" />
+              <span className="absolute right-0 top-0 flex h-5 min-w-5 -translate-y-1/4 translate-x-1/4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-foreground shadow-sm">
+                3
+              </span>
+            </Link>
+
+            <Link href="/passenger/account" aria-label="Open profile">
+              <Avatar className="h-10 w-10 border border-black/10 bg-white shadow-sm">
+                <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                  {getInitials(profileName)}
+                </AvatarFallback>
+              </Avatar>
             </Link>
           </div>
-        </section>
+        </div>
+
+        <div className="relative z-20 mt-6 min-h-[11.25rem]">
+          <div className="max-w-[55%] pt-2">
+            <h1 className="text-[clamp(2.05rem,8.7vw,2.65rem)] font-semibold leading-[0.98] tracking-tight text-foreground">
+              Hello, {firstName}
+            </h1>
+
+            <p className="mt-2.5 text-[0.9rem] font-medium leading-snug text-muted-foreground">
+              Book your next tricycle ride
+            </p>
+
+            <div className="mt-6 flex items-center gap-2.5">
+              <Link href="/passenger/on-demand">
+                <Button className="h-10 rounded-[0.95rem] bg-primary px-3.5 text-xs font-semibold text-primary-foreground shadow-[0_8px_18px_-12px_rgba(20,98,46,0.7)]">
+                  <Zap className="mr-1.5 h-3.5 w-3.5 fill-accent text-accent" />
+                  Ride Now
+                </Button>
+              </Link>
+
+              <Link href="/passenger/toda">
+                <Button
+                  variant="outline"
+                  className="h-10 rounded-[0.95rem] border border-primary/45 bg-white px-3.5 text-xs font-semibold text-primary shadow-sm"
+                >
+                  <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
+                  Reserve
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {error ? (
+        <InlineErrorState
+          message="We could not load some home details right now. Please try again."
+          onRetry={() => void loadHomeData()}
+        />
       ) : null}
+
+      {activeRide || activeReservation ? (
+        <Link
+          href={activeRide ? "/passenger/on-demand" : "/passenger/toda"}
+          className="flex items-center justify-between gap-3 rounded-[1.1rem] border border-primary/15 bg-card px-3 py-2.5 text-xs shadow-sm transition-colors hover:bg-muted/35"
+        >
+          <div className="min-w-0">
+            <p className="font-semibold">
+              {activeRide ? "Active ride" : "Active reservation"}
+            </p>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {activeRide
+                ? `${activeRide.pickupLocation} to ${activeRide.dropoffLocation}`
+                : activeReservation?.TODATerminal.name}
+            </p>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1.5">
+            <StatusBadge
+              status={
+                activeRide?.status ?? activeReservation?.status ?? "confirmed"
+              }
+            />
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </Link>
+      ) : null}
+
+      <section className="relative z-20 space-y-3 rounded-[1.35rem] border border-primary/15 bg-card px-3 py-3 text-card-foreground shadow-[0_14px_34px_-30px_rgba(20,98,46,0.34)]">
+        <div className="relative grid gap-3">
+          <div className="absolute left-4 top-10 h-[3.9rem] border-l-4 border-dotted border-primary/55" />
+
+          <div className="relative grid grid-cols-[auto_minmax(0,1fr)] gap-2.5">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <CircleDot className="h-7 w-7 fill-primary/10 stroke-[2.5]" />
+            </span>
+
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(7.7rem,auto)] items-center gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Pickup
+                </p>
+                <p className="truncate text-[15px] font-semibold leading-tight">
+                  Current Location
+                </p>
+              </div>
+
+              <Link
+                href="/passenger/toda"
+                className="min-w-0 rounded-[0.95rem] bg-primary/5 px-2.5 py-2 transition-colors hover:bg-primary/10"
+              >
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[10px] font-medium text-muted-foreground">
+                      Assigned Terminal
+                    </span>
+                    <span className="block truncate text-xs font-semibold">
+                      {terminalName}
+                    </span>
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-primary" />
+                </span>
+              </Link>
+            </div>
+          </div>
+
+          <Link
+            href="/passenger/on-demand"
+            className="relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 border-t border-border/70 pt-3 transition-colors hover:text-primary"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+              <MapPin className="h-6 w-6 fill-background stroke-background" />
+            </span>
+
+            <span className="min-w-0">
+              <span className="block text-xs font-medium text-muted-foreground">
+                Drop-off
+              </span>
+              <span className="block truncate text-[15px] font-medium text-muted-foreground">
+                Where are you going?
+              </span>
+            </span>
+
+            <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+          </Link>
+        </div>
+
+        <div className="overflow-hidden rounded-[1rem] border border-primary/15 bg-background/90">
+          <div className="grid grid-cols-3 divide-x divide-primary/15">
+            <div className="flex items-center gap-2 px-2 py-2.5">
+              <span className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground min-[390px]:flex">
+                <UsersRound className="h-4 w-4" />
+              </span>
+
+              <div className="min-w-0">
+                <p className="truncate text-[9px] font-medium text-muted-foreground">
+                  Queue
+                </p>
+                <p className="text-xl font-semibold leading-none">
+                  {queueNumber}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 px-2 py-2.5">
+              <span className="relative hidden h-8 w-10 shrink-0 min-[390px]:block">
+                <Image
+                  src="/mobile-landing-hero-tricycle.png"
+                  alt=""
+                  fill
+                  sizes="40px"
+                  className="object-contain"
+                />
+              </span>
+
+              <div className="min-w-0">
+                <p className="truncate text-[9px] font-medium text-muted-foreground">
+                  Available
+                </p>
+                <p className="text-xl font-semibold leading-none">
+                  {tricyclesAvailable}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 px-2 py-2.5">
+              <span className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-primary text-primary min-[390px]:flex">
+                <Clock3 className="h-4 w-4" />
+              </span>
+
+              <div className="min-w-0">
+                <p className="truncate text-[9px] font-medium text-muted-foreground">
+                  ETA
+                </p>
+                <p className="text-lg font-semibold leading-none">{eta}</p>
+              </div>
+            </div>
+          </div>
+
+          <Link href="/passenger/on-demand" className="block p-1.5 pt-0">
+            <Button className="h-12 w-full rounded-[0.9rem] bg-primary text-base font-semibold text-primary-foreground shadow-[0_3px_0_var(--accent)]">
+              <Bike className="mr-2 h-4 w-4" />
+              Book Tricycle
+              <ChevronRight className="ml-auto h-5 w-5" />
+            </Button>
+          </Link>
+        </div>
+
+        {terminalContextError ? (
+          <p className="rounded-lg bg-muted/60 px-2.5 py-2 text-[11px] text-muted-foreground">
+            Terminal info is updating. You may still book a ride.
+          </p>
+        ) : null}
+      </section>
+
+      <section className="space-y-2.5">
+        <div className="flex items-center justify-between px-0.5">
+          <h2 className="text-lg font-semibold tracking-tight">
+            Ride Options
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2.5">
+          {RIDE_OPTIONS.map((option) => (
+            <Link
+              key={option.title}
+              href="/passenger/on-demand"
+              className={`min-w-0 rounded-[1rem] border p-2 text-center shadow-sm transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${option.cardClassName}`}
+            >
+              <span className="relative mx-auto block h-12 w-full overflow-hidden rounded-[0.75rem]">
+                <Image
+                  src={option.imageSrc}
+                  alt={option.title}
+                  fill
+                  sizes="33vw"
+                  className={`object-contain drop-shadow-[0_8px_10px_rgba(15,31,22,0.14)] ${option.imageClassName}`}
+                />
+              </span>
+
+              <span className="mt-1.5 block truncate text-xs font-semibold leading-tight">
+                {option.title}
+              </span>
+              <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
+                {option.subtitle}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-2.5">
+        <div className="flex items-center justify-between px-0.5">
+          <h2 className="text-lg font-semibold tracking-tight">
+            Recent Places
+          </h2>
+          <Link
+            href="/passenger/account/settings"
+            className="text-xs font-semibold text-primary"
+          >
+            Manage
+          </Link>
+        </div>
+
+        <div className="overflow-hidden rounded-[1.15rem] border border-border/70 bg-card shadow-sm">
+          {RECENT_PLACES.map((place, index) => {
+            const Icon = place.icon;
+
+            return (
+              <Link
+                key={place.name}
+                href="/passenger/on-demand"
+                className="flex w-full items-center gap-2.5 px-3 py-3 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <Icon className="h-4 w-4" />
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold leading-tight">
+                    {place.name}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {place.address}
+                  </span>
+                  {index === 0 ? (
+                    <span className="mt-2.5 block border-b border-border/70" />
+                  ) : null}
+                </span>
+
+                <Star className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </Link>
+            );
+          })}
+        </div>
+      </section>
     </PassengerAppShell>
   );
 }
-
-
