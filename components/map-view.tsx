@@ -267,11 +267,10 @@ export function MapView({
           return;
         }
 
-        updateRoadRouteCoordinates(routeCoordinates);
+        updateRoadRouteCoordinates(EMPTY_COORDINATES);
       } catch {
         if (!isCancelled) {
-          // Fallback to direct line if route service is unavailable.
-          updateRoadRouteCoordinates(routeCoordinates);
+          updateRoadRouteCoordinates(EMPTY_COORDINATES);
         }
       }
     };

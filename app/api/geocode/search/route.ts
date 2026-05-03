@@ -1,21 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  buildProviderSearchQuery,
+  buildSearchCacheKey,
+  buildSearchViewbox,
+  dedupeSearchResults,
+  formatSearchViewbox,
+  parseSearchBias,
+  rankSearchResults,
+  type GeocodePoint,
+  type GeocodeSearchResult,
+} from '@/lib/geocode/search';
 import { checkEndpointRateLimit } from '@/lib/security/rate-limit-endpoint';
 
 const CACHE_TTL_MS = 60_000;
 const MAX_RESULTS = 5;
+const LOCAL_BIAS_RADIUS_KM = 40;
+const MIN_SEARCH_LENGTH = 3;
 
-interface SearchItem {
+interface NominatimSearchItem {
   display_name?: string;
   lat?: string;
   lon?: string;
 }
 
+interface PhotonSearchFeature {
+  geometry?: {
+    coordinates?: unknown;
+  };
+  properties?: {
+    name?: string;
+    street?: string;
+    city?: string;
+    county?: string;
+    state?: string;
+    country?: string;
+  };
+}
+
+interface PhotonSearchResponse {
+  features?: PhotonSearchFeature[];
+}
+
 type SearchCacheEntry = {
-  items: Array<{
-    label: string;
-    latitude: number;
-    longitude: number;
-  }>;
+  items: GeocodeSearchResult[];
   expiresAt: number;
 };
 
@@ -34,6 +61,150 @@ function normalizeLabel(displayName: string): string {
     .filter(Boolean)
     .slice(0, 3)
     .join(', ');
+}
+
+function buildNominatimUrl(query: string, options?: { bias: GeocodePoint; radiusKm: number }) {
+  const url = new URL('https://nominatim.openstreetmap.org/search');
+  url.searchParams.set('format', 'jsonv2');
+  url.searchParams.set('q', query);
+  url.searchParams.set('addressdetails', '1');
+  url.searchParams.set('limit', String(MAX_RESULTS));
+  url.searchParams.set('countrycodes', 'ph');
+
+  if (options) {
+    url.searchParams.set('viewbox', formatSearchViewbox(buildSearchViewbox(options.bias, options.radiusKm)));
+    url.searchParams.set('bounded', '1');
+  }
+
+  return url;
+}
+
+function buildPhotonUrl(query: string, options?: { bias: GeocodePoint; radiusKm: number }) {
+  const url = new URL('https://photon.komoot.io/api/');
+  url.searchParams.set('q', query);
+  url.searchParams.set('limit', String(MAX_RESULTS));
+  url.searchParams.set('lang', 'en');
+
+  if (options) {
+    const viewbox = buildSearchViewbox(options.bias, options.radiusKm);
+    url.searchParams.set('lat', options.bias.latitude.toString());
+    url.searchParams.set('lon', options.bias.longitude.toString());
+    url.searchParams.set('bbox', formatSearchViewbox(viewbox));
+  }
+
+  return url;
+}
+
+function compactUnique(parts: Array<string | undefined | null>) {
+  const seen = new Set<string>();
+  const output: string[] = [];
+
+  for (const part of parts) {
+    const value = part?.trim();
+    if (!value) continue;
+
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    output.push(value);
+  }
+
+  return output;
+}
+
+function normalizeNominatimResults(payload: NominatimSearchItem[]) {
+  return dedupeSearchResults(
+    payload.map((item) => ({
+      label: item.display_name ? normalizeLabel(item.display_name) : '',
+      latitude: Number(item.lat),
+      longitude: Number(item.lon),
+    }))
+  );
+}
+
+function normalizePhotonResults(payload: PhotonSearchResponse) {
+  const features = Array.isArray(payload.features) ? payload.features : [];
+
+  return dedupeSearchResults(
+    features.map((feature) => {
+      const coordinates = feature.geometry?.coordinates;
+      const longitude = Array.isArray(coordinates) ? Number(coordinates[0]) : Number.NaN;
+      const latitude = Array.isArray(coordinates) ? Number(coordinates[1]) : Number.NaN;
+      const properties = feature.properties ?? {};
+      const label = compactUnique([
+        properties.name,
+        properties.street,
+        properties.city ?? properties.county,
+      ])
+        .slice(0, 4)
+        .join(', ');
+
+      return { label, latitude, longitude };
+    })
+  );
+}
+
+async function fetchNominatimResults(query: string, options?: { bias: GeocodePoint; radiusKm: number }) {
+  const response = await fetch(buildNominatimUrl(query, options).toString(), {
+    cache: 'no-store',
+    headers: {
+      Accept: 'application/json',
+      'Accept-Language': 'en',
+      'User-Agent': 'TRISSEABooking/1.0',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Search service unavailable.');
+  }
+
+  return normalizeNominatimResults((await response.json()) as NominatimSearchItem[]);
+}
+
+async function fetchPhotonResults(query: string, options?: { bias: GeocodePoint; radiusKm: number }) {
+  const response = await fetch(buildPhotonUrl(query, options).toString(), {
+    cache: 'no-store',
+    headers: {
+      Accept: 'application/json',
+      'Accept-Language': 'en',
+      'User-Agent': 'TRISSEABooking/1.0',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Fallback search service unavailable.');
+  }
+
+  return normalizePhotonResults((await response.json()) as PhotonSearchResponse);
+}
+
+async function fetchProviderResults(query: string, options?: { bias: GeocodePoint; radiusKm: number }) {
+  const providerResults: GeocodeSearchResult[] = [];
+
+  try {
+    const nominatimResults = await fetchNominatimResults(query, options);
+    providerResults.push(...nominatimResults);
+  } catch {
+    // Nominatim can throttle autocomplete-style searches; try the fallback provider below.
+  }
+
+  try {
+    providerResults.push(...(await fetchPhotonResults(query, options)));
+  } catch {
+    // Keep any primary provider results. The caller handles an empty array.
+  }
+
+  return rankSearchResults(providerResults, query, options?.bias ?? null);
+}
+
+async function searchWithLocalBias(query: string, bias: GeocodePoint) {
+  const results = await fetchProviderResults(query, { bias, radiusKm: LOCAL_BIAS_RADIUS_KM });
+  return results.slice(0, MAX_RESULTS);
+}
+
+async function searchWithoutBias(query: string) {
+  return (await fetchProviderResults(query)).slice(0, MAX_RESULTS);
 }
 
 export async function GET(request: NextRequest) {
@@ -55,12 +226,14 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const query = request.nextUrl.searchParams.get('q')?.trim() ?? '';
-  if (query.length < 3) {
+  const rawQuery = request.nextUrl.searchParams.get('q')?.trim() ?? '';
+  const query = buildProviderSearchQuery(rawQuery);
+  if (query.length < MIN_SEARCH_LENGTH) {
     return NextResponse.json({ results: [] });
   }
 
-  const cacheKey = query.toLowerCase();
+  const bias = parseSearchBias(request.nextUrl.searchParams);
+  const cacheKey = buildSearchCacheKey(rawQuery, bias);
   const cached = searchCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
     return NextResponse.json(
@@ -73,35 +246,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const url = new URL('https://nominatim.openstreetmap.org/search');
-  url.searchParams.set('format', 'jsonv2');
-  url.searchParams.set('q', query);
-  url.searchParams.set('addressdetails', '1');
-  url.searchParams.set('limit', String(MAX_RESULTS));
-  url.searchParams.set('countrycodes', 'ph');
-
   try {
-    const response = await fetch(url.toString(), {
-      cache: 'no-store',
-      headers: {
-        Accept: 'application/json',
-        'Accept-Language': 'en',
-        'User-Agent': 'TRISSEABooking/1.0',
-      },
-    });
-
-    if (!response.ok) {
-      return NextResponse.json({ error: 'Search service unavailable.' }, { status: 502 });
-    }
-
-    const payload = (await response.json()) as SearchItem[];
-    const results = payload
-      .map((item) => ({
-        label: item.display_name ? normalizeLabel(item.display_name) : '',
-        latitude: Number(item.lat),
-        longitude: Number(item.lon),
-      }))
-      .filter((item) => item.label.length > 0 && Number.isFinite(item.latitude) && Number.isFinite(item.longitude));
+    const results = bias ? await searchWithLocalBias(query, bias) : await searchWithoutBias(query);
 
     searchCache.set(cacheKey, {
       items: results,
@@ -117,7 +263,14 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch {
-    return NextResponse.json({ error: 'Failed to search addresses.' }, { status: 502 });
+    return NextResponse.json(
+      { results: [] },
+      {
+        headers: {
+          'x-geocode-status': 'unavailable',
+        },
+      }
+    );
   }
 }
 

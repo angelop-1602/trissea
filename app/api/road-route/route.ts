@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkEndpointRateLimit } from '@/lib/security/rate-limit-endpoint';
+import {
+  buildRoadRouteCacheKey,
+  parseRouteCoordinates,
+  resolveRoadRoute,
+  RoadRouteError,
+  type RoadRouteProvider,
+  type RouteCoordinate,
+} from '@/lib/routing/road-route';
 
 const CACHE_TTL_MS = 30_000;
 
 type RouteCacheEntry = {
-  coordinates: [number, number][];
+  coordinates: RouteCoordinate[];
+  provider: RoadRouteProvider;
   expiresAt: number;
 };
 
@@ -15,30 +24,6 @@ const globalForRoadRouteCache = globalThis as unknown as {
 const roadRouteCache =
   globalForRoadRouteCache.__trisseaRoadRouteCache ??
   (globalForRoadRouteCache.__trisseaRoadRouteCache = new Map<string, RouteCacheEntry>());
-
-interface OsrmRouteResponse {
-  routes?: Array<{
-    geometry?: {
-      coordinates?: [number, number][];
-    };
-  }>;
-}
-
-function parseCoordinatePair(input: string): [number, number] | null {
-  const [longitudeRaw, latitudeRaw] = input.split(',');
-  const longitude = Number(longitudeRaw);
-  const latitude = Number(latitudeRaw);
-
-  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
-    return null;
-  }
-
-  if (longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
-    return null;
-  }
-
-  return [longitude, latitude];
-}
 
 export async function GET(request: NextRequest) {
   const limit = await checkEndpointRateLimit(request, {
@@ -68,11 +53,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const coordinates = coordinatesParam
-    .split(';')
-    .map((item) => item.trim())
-    .map(parseCoordinatePair)
-    .filter((item): item is [number, number] => item !== null);
+  const coordinates = parseRouteCoordinates(coordinatesParam);
 
   if (coordinates.length < 2) {
     return NextResponse.json(
@@ -81,9 +62,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const cacheKey = coordinates
-    .map(([longitude, latitude]) => `${longitude.toFixed(5)},${latitude.toFixed(5)}`)
-    .join(';');
+  const cacheKey = buildRoadRouteCacheKey(coordinates);
 
   const cached = roadRouteCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
@@ -92,56 +71,38 @@ export async function GET(request: NextRequest) {
       {
         headers: {
           'x-cache': 'hit',
+          'x-routing-provider': cached.provider,
         },
       }
     );
   }
 
-  const coordinateString = coordinates
-    .map(([longitude, latitude]) => `${longitude},${latitude}`)
-    .join(';');
-
-  const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordinateString}?overview=full&geometries=geojson&steps=false`;
-
   try {
-    const response = await fetch(osrmUrl, {
-      cache: 'no-store',
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: 'Road routing service is currently unavailable.' },
-        { status: 502 }
-      );
-    }
-
-    const data = (await response.json()) as OsrmRouteResponse;
-    const routedCoordinates = data.routes?.[0]?.geometry?.coordinates;
-
-    if (!Array.isArray(routedCoordinates) || routedCoordinates.length < 2) {
-      return NextResponse.json(
-        { error: 'No route geometry returned by routing service.' },
-        { status: 502 }
-      );
-    }
+    const route = await resolveRoadRoute(coordinates);
 
     roadRouteCache.set(cacheKey, {
-      coordinates: routedCoordinates,
+      coordinates: route.coordinates,
+      provider: route.provider,
       expiresAt: Date.now() + CACHE_TTL_MS,
     });
 
     return NextResponse.json(
-      { coordinates: routedCoordinates },
+      { coordinates: route.coordinates },
       {
         headers: {
           'x-cache': 'miss',
+          'x-routing-provider': route.provider,
         },
       }
     );
-  } catch {
+  } catch (error) {
+    if (error instanceof RoadRouteError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.status }
+      );
+    }
+
     return NextResponse.json(
       { error: 'Failed to resolve road-following route.' },
       { status: 502 }

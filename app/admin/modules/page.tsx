@@ -10,10 +10,18 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getAdminSidebarItems } from '@/lib/admin-navigation';
 import { useStore } from '@/lib/store-context';
-import { getEnabledTransportModules, getModuleLandingRouteForRole } from '@/lib/transport-modules';
+import {
+  getEnabledTransportModules,
+  getModuleLandingRouteForRole,
+  type TenantTransportModuleSummary,
+} from '@/lib/transport-modules';
 
-function getModuleIcon(moduleKey: 'tricycle' | 'jeepney') {
-  return moduleKey === 'jeepney' ? <BusFront className="h-4 w-4" /> : <CarFront className="h-4 w-4" />;
+function getModuleIcon(moduleKey: TenantTransportModuleSummary['moduleKey']) {
+  return moduleKey === 'jeepney' || moduleKey === 'bus' ? (
+    <BusFront className="h-4 w-4" />
+  ) : (
+    <CarFront className="h-4 w-4" />
+  );
 }
 
 export default function AdminModulesPage() {

@@ -23,7 +23,7 @@ export function isDevSmsAuthEnabled() {
 }
 
 export function getDevSmsAuthPhone() {
-  return normalizeConfiguredPhone(process.env.DEV_SMS_AUTH_PHONES ?? DEFAULT_DEV_SMS_AUTH_PHONE);
+  return getDevSmsAuthPhones()[0] ?? DEFAULT_DEV_SMS_AUTH_PHONE;
 }
 
 export function getDevSmsAuthPhones() {

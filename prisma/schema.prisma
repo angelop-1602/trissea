@@ -492,6 +492,8 @@ enum UserRole {
 enum TransportModuleKey {
   tricycle
   jeepney
+  bus
+  van
 }
 
 enum TenantStatus {

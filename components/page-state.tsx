@@ -19,6 +19,7 @@ interface PageLoadingStateProps {
 
 interface InlineErrorStateProps {
   message: string;
+  title?: string;
   onRetry?: () => void;
   retryLabel?: string;
   className?: string;
@@ -88,6 +89,7 @@ export function PageLoadingState({
 
 export function InlineErrorState({
   message,
+  title = 'Something went wrong',
   onRetry,
   retryLabel = 'Try again',
   className,
@@ -95,7 +97,7 @@ export function InlineErrorState({
   return (
     <Alert variant="destructive" className={cn('border-destructive/30', className)}>
       <AlertCircle className="h-4 w-4" />
-      <AlertTitle>Something went wrong</AlertTitle>
+      <AlertTitle>{title}</AlertTitle>
       <AlertDescription className="mt-1 flex flex-wrap items-center gap-3">
         <span>{message}</span>
         {onRetry ? (

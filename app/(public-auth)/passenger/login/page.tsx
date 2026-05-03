@@ -113,6 +113,8 @@ export default function PassengerLoginPage() {
         body: JSON.stringify({
           phone: normalizedPhone,
           token: token.trim(),
+          authFlow: 'login',
+          expectedRole: 'passenger',
         }),
       });
       const verifyPayload = await verifyResponse.json().catch(() => ({}));

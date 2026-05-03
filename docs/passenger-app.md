@@ -1,5 +1,7 @@
 # Passenger App Architecture
 
+Design source of truth: `docs/PASSENGER_DESIGN_GUIDE.md`.
+
 ## Canonical passenger routes
 
 - `/passenger/home`

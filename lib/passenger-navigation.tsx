@@ -1,10 +1,11 @@
-import { Clock3, History, House, LayoutGrid, UserRound } from 'lucide-react';
+import { Clock3, History, House, LayoutGrid, MapPinned, QrCode } from 'lucide-react';
 
 export interface PassengerNavItem {
   href: string;
   label: string;
   icon: React.ReactNode;
   matchPaths?: string[];
+  isPrimaryAction?: boolean;
 }
 
 export function getPassengerPrimaryNav(options?: { hasModuleHub?: boolean }): PassengerNavItem[] {
@@ -22,19 +23,25 @@ export function getPassengerPrimaryNav(options?: { hasModuleHub?: boolean }): Pa
           matchPaths: ['/passenger/tricycle', '/passenger/home'],
         },
     {
+      href: '/passenger/scan',
+      label: 'Scan',
+      icon: <QrCode className="h-5 w-5" />,
+    },
+    {
+      href: '/passenger/on-demand',
+      label: 'Book',
+      icon: <MapPinned className="h-5 w-5" />,
+      isPrimaryAction: true,
+    },
+    {
       href: '/passenger/activity',
-      label: 'Trips',
+      label: 'Activity',
       icon: <History className="h-5 w-5" />,
     },
     {
       href: '/passenger/toda',
-      label: 'Terminals',
+      label: 'TODA',
       icon: <Clock3 className="h-5 w-5" />,
-    },
-    {
-      href: '/passenger/account',
-      label: 'Profile',
-      icon: <UserRound className="h-5 w-5" />,
     },
   ];
 }

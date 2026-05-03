@@ -23,16 +23,7 @@ import {
   type RideFeedbackInput,
   type RideTransitionAction,
 } from '@/lib/booking/types';
-
-interface OsrmRouteResponse {
-  routes?: Array<{
-    distance?: number;
-    duration?: number;
-    geometry?: {
-      coordinates?: [number, number][];
-    };
-  }>;
-}
+import { resolveRoadRoute, RoadRouteError } from '@/lib/routing/road-route';
 
 type DriverPresenceCandidate = {
   driverId: string;
@@ -418,32 +409,24 @@ function ensureRole(role: UserRole, expected: UserRole) {
 }
 
 async function fetchRoadRoute(pickup: QuoteInput['pickup'], dropoff: QuoteInput['dropoff']) {
-  const coordinateString = `${pickup.longitude},${pickup.latitude};${dropoff.longitude},${dropoff.latitude}`;
-  const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordinateString}?overview=full&geometries=geojson&steps=false`;
+  try {
+    const route = await resolveRoadRoute([
+      [pickup.longitude, pickup.latitude],
+      [dropoff.longitude, dropoff.latitude],
+    ]);
 
-  const response = await fetch(osrmUrl, {
-    cache: 'no-store',
-    headers: {
-      Accept: 'application/json',
-    },
-  });
+    return {
+      routeCoordinates: route.coordinates,
+      distanceKm: route.distanceKm,
+      estimatedDurationMin: route.estimatedDurationMin,
+    };
+  } catch (error) {
+    if (error instanceof RoadRouteError) {
+      throw new BookingError(error.message, error.status, error.code);
+    }
 
-  if (!response.ok) {
-    throw new BookingError('Road routing service is currently unavailable.', 502, 'ROUTING_UNAVAILABLE');
+    throw error;
   }
-
-  const data = (await response.json()) as OsrmRouteResponse;
-  const route = data.routes?.[0];
-
-  if (!route?.geometry?.coordinates || route.geometry.coordinates.length < 2) {
-    throw new BookingError('No route geometry returned by routing service.', 502, 'ROUTING_EMPTY');
-  }
-
-  return {
-    routeCoordinates: route.geometry.coordinates,
-    distanceKm: Number(((route.distance ?? 0) / 1000).toFixed(2)),
-    estimatedDurationMin: Math.max(1, Math.ceil((route.duration ?? 0) / 60)),
-  };
 }
 
 export function calculateFare(

@@ -1,6 +1,6 @@
 import type { UserRole } from '@prisma/client';
 
-export const TRANSPORT_MODULE_KEYS = ['tricycle', 'jeepney'] as const;
+export const TRANSPORT_MODULE_KEYS = ['tricycle', 'jeepney', 'bus', 'van'] as const;
 export type TransportModuleKeyValue = (typeof TRANSPORT_MODULE_KEYS)[number];
 export type TransportModuleRole = Exclude<UserRole, 'superadmin'>;
 
@@ -52,6 +52,28 @@ const TRANSPORT_MODULE_REGISTRY: Record<TransportModuleKeyValue, TransportModule
       admin: '/admin/jeepney',
     },
   },
+  bus: {
+    key: 'bus',
+    label: 'Bus',
+    summary: 'City and inter-terminal bus workflows are planned for a future transport module.',
+    stage: 'planned',
+    roleRoutes: {
+      passenger: '/passenger/modules',
+      driver: '/driver/modules',
+      admin: '/admin/modules',
+    },
+  },
+  van: {
+    key: 'van',
+    label: 'Van',
+    summary: 'Van route and group-trip workflows are planned for a future transport module.',
+    stage: 'planned',
+    roleRoutes: {
+      passenger: '/passenger/modules',
+      driver: '/driver/modules',
+      admin: '/admin/modules',
+    },
+  },
 };
 
 export const DEFAULT_TENANT_TRANSPORT_MODULES: Array<{
@@ -71,6 +93,18 @@ export const DEFAULT_TENANT_TRANSPORT_MODULES: Array<{
     isEnabled: false,
     isDefault: false,
     sortOrder: 1,
+  },
+  {
+    moduleKey: 'bus',
+    isEnabled: false,
+    isDefault: false,
+    sortOrder: 2,
+  },
+  {
+    moduleKey: 'van',
+    isEnabled: false,
+    isDefault: false,
+    sortOrder: 3,
   },
 ];
 

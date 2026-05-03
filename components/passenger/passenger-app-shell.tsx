@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { useStore } from '@/lib/store-context';
@@ -13,7 +14,7 @@ import { getTenantThemeVariables } from '@/lib/theme/tenant-theme';
 interface PassengerAppShellProps {
   title: string;
   subtitle?: string;
-  children: React.ReactNode;
+  children: ReactNode;
   backHref?: string;
   topContext?: string;
   headerVariant?: 'default' | 'compact';
@@ -21,6 +22,7 @@ interface PassengerAppShellProps {
   headerSurface?: 'panel' | 'minimal';
   preserveBottomNavSpace?: boolean;
   showHeader?: boolean;
+  showBottomNav?: boolean;
 }
 
 function getInitials(value?: string | null) {
@@ -48,6 +50,7 @@ export function PassengerAppShell({
   headerSurface = 'panel',
   preserveBottomNavSpace = true,
   showHeader = true,
+  showBottomNav = true,
 }: PassengerAppShellProps) {
   const pathname = usePathname();
   const { currentTenantModules, currentUser, getTenantBranding } = useStore();
@@ -55,13 +58,15 @@ export function PassengerAppShell({
   const accountLabel = useMemo(() => getInitials(currentUser?.name), [currentUser?.name]);
   const isAccountArea = pathname.startsWith('/passenger/account');
   const isCompact = headerVariant === 'compact';
+
   const primaryNavItems = useMemo(
     () => getPassengerPrimaryNav({ hasModuleHub: hasModuleHub(currentTenantModules) }),
-    [currentTenantModules]
+    [currentTenantModules],
   );
+
   const themeStyle = useMemo(
     () => getTenantThemeVariables(getTenantBranding(), 'tenant'),
-    [getTenantBranding]
+    [getTenantBranding],
   );
 
   return (
@@ -69,8 +74,8 @@ export function PassengerAppShell({
       className="theme-passenger relative min-h-screen min-h-dvh overflow-x-hidden bg-background text-foreground"
       style={themeStyle}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top,_color-mix(in_oklab,var(--primary)_24%,transparent),transparent_70%)] opacity-90" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,_color-mix(in_oklab,var(--primary)_10%,transparent)_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.08] dark:opacity-[0.14]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top,_color-mix(in_oklab,var(--primary)_20%,transparent),transparent_70%)] opacity-80" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,_color-mix(in_oklab,var(--primary)_8%,transparent)_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.07] dark:opacity-[0.12]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-background/30 via-background/6 to-transparent dark:from-background/25" />
 
       {showHeader ? (
@@ -87,16 +92,21 @@ export function PassengerAppShell({
       ) : null}
 
       <main
-        className={cn('mx-auto w-full max-w-screen-sm space-y-5 px-4 py-3', contentClassName)}
+        className={cn(
+          'relative z-10 mx-auto w-full max-w-screen-sm space-y-4 px-4 py-3',
+          contentClassName,
+        )}
         style={{
-          paddingBottom: preserveBottomNavSpace
-            ? 'calc(6rem + env(safe-area-inset-bottom))'
-            : undefined,
+          paddingBottom:
+            preserveBottomNavSpace && showBottomNav
+              ? 'calc(6.75rem + env(safe-area-inset-bottom))'
+              : undefined,
         }}
       >
         {children}
       </main>
-      <BottomNav items={primaryNavItems} />
+
+      {showBottomNav ? <BottomNav items={primaryNavItems} /> : null}
     </div>
   );
 }

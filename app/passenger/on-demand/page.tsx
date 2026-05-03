@@ -1,8 +1,26 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Clock3, MapPin, Navigation, Sparkles, Star, XCircle } from 'lucide-react';
+import type { TODATerminal } from '@prisma/client';
+import {
+  Bike,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  CircleDot,
+  Clock3,
+  Layers,
+  Locate,
+  MapPin,
+  Maximize,
+  Navigation,
+  Sparkles,
+  Star,
+  UsersRound,
+  XCircle,
+} from 'lucide-react';
 import type { MapMouseEvent } from 'maplibre-gl';
 import { BRAND_NAME } from '@/lib/brand';
 import { useStore } from '@/lib/store-context';
@@ -29,7 +47,6 @@ import { StatusBadge } from '@/components/status-badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Map,
-  MapControls,
   MapMarker,
   MapRoute,
   MarkerContent,
@@ -40,22 +57,59 @@ import {
   cancelOnDemandRide,
   createOnDemand,
   getPassengerActiveRide,
+  getTodaTerminals,
   quoteOnDemand,
   type PassengerActiveRide,
 } from '@/lib/booking/client';
 import { useBookingRealtime } from '@/hooks/use-booking-realtime';
 import { useUserLocation } from '@/hooks/use-user-location';
 import { writeRideFeedbackPrompt } from '@/lib/ride-feedback-prompt';
+import { cn } from '@/lib/utils';
 
 const FALLBACK_MAP_CENTER: [number, number] = [121.7268, 17.6136];
 const DRAFT_STORAGE_KEY = 'trissea:on-demand:draft';
+const DRAFT_BOOKING_SHEET_HEIGHT =
+  'min(70dvh, calc(31rem + 6.85rem + env(safe-area-inset-bottom)))';
+const DRAFT_BOOKING_SHEET_COLLAPSED_HEIGHT =
+  'min(calc(100dvh - 0.75rem), calc(12rem + 6.85rem + env(safe-area-inset-bottom)))';
 const COLLAPSED_SEARCHING_RIDE_HEIGHT =
   'min(calc(100dvh - 0.75rem), calc(12.5rem + 6.85rem + env(safe-area-inset-bottom)))';
+const SEARCH_DEBOUNCE_MS = 1000;
+
+const RIDE_OPTIONS = [
+  {
+    key: 'regular',
+    title: 'Regular',
+    subtitle: 'Quick & reliable',
+    imageSrc: '/mobile-landing-hero-tricycle.png',
+  },
+  {
+    key: 'shared',
+    title: 'Shared',
+    subtitle: 'Shared, affordable',
+    imageSrc: '/mobile-landing-hero-tricycle.png',
+  },
+  {
+    key: 'special',
+    title: 'Special',
+    subtitle: 'Whole unit for you',
+    imageSrc: '/mobile-landing-hero-tricycle.png',
+  },
+] as const;
+
+type RideOptionKey = (typeof RIDE_OPTIONS)[number]['key'];
+type SearchFocus = 'pickup' | 'dropoff' | null;
+
 interface GeocodeSearchResult {
   label: string;
   latitude: number;
   longitude: number;
 }
+
+type SearchBias = {
+  latitude: number;
+  longitude: number;
+};
 
 type RideHandoffState = 'completed' | 'cancelled' | null;
 
@@ -101,6 +155,56 @@ function formatPeso(value: number) {
     currency: 'PHP',
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function haversineKm(
+  from: { latitude: number; longitude: number },
+  to: { latitude: number; longitude: number }
+) {
+  const earthRadiusKm = 6371;
+  const dLat = ((to.latitude - from.latitude) * Math.PI) / 180;
+  const dLon = ((to.longitude - from.longitude) * Math.PI) / 180;
+  const lat1 = (from.latitude * Math.PI) / 180;
+  const lat2 = (to.latitude * Math.PI) / 180;
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) *
+      Math.cos(lat2) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatEtaFromDistance(distanceKm: number | null) {
+  if (distanceKm == null) {
+    return 'Updating';
+  }
+
+  return `${Math.max(4, Math.round(distanceKm * 6))} min`;
+}
+
+function stripApiErrorDetails(message: string) {
+  return message.replace(/\s*\((?:code|requestId)=[^)]+\)\s*$/i, '').trim();
+}
+
+function formatQuoteErrorMessage(message: string) {
+  if (/ROUTING_RESTRICTED|restricted or private road/i.test(message)) {
+    return 'This route uses a road we cannot dispatch to yet. Move pickup or drop-off to a nearby public road and try again.';
+  }
+
+  if (/ROUTING_EMPTY|No public road route/i.test(message)) {
+    return 'We could not find a public road route for these points. Move the pins closer to a road and try again.';
+  }
+
+  return stripApiErrorDetails(message);
+}
+
+function getBookingErrorTitle(message: string) {
+  return /public road|route uses a road|route for these points/i.test(message)
+    ? 'Adjust route'
+    : 'Something went wrong';
 }
 
 function getRideSubtitle(ride: { status: PassengerActiveRide['status'] }) {
@@ -176,56 +280,6 @@ function ActiveDriverCompactProfile({ ride }: { ride: PassengerActiveRide }) {
       trailing={<StatusBadge status={ride.status} />}
     />
   );
-}
-
-function getDraftCopy({
-  pickup,
-  dropoff,
-  quote,
-  isBooking,
-}: {
-  pickup: boolean;
-  dropoff: boolean;
-  quote: boolean;
-  isBooking: boolean;
-}) {
-  if (isBooking) {
-    return {
-      label: 'Sending request',
-      title: 'Sending your ride to TODA dispatch',
-      subtitle: 'Hold on while we send this route to the nearest available terminal.',
-    };
-  }
-
-  if (!pickup) {
-    return {
-      label: 'Start here',
-      title: 'Set your pickup',
-      subtitle: 'Search for your street or tap directly on the map.',
-    };
-  }
-
-  if (!dropoff) {
-    return {
-      label: 'Destination',
-      title: 'Where are you going?',
-      subtitle: 'Add your destination to prepare the route estimate and fare.',
-    };
-  }
-
-  if (!quote) {
-    return {
-      label: 'Checking route',
-      title: 'Preparing your route',
-      subtitle: 'We are calculating the latest fare and estimated travel time.',
-    };
-  }
-
-  return {
-    label: 'Ready to book',
-    title: 'Your route is ready',
-    subtitle: 'Review the fare and ETA, then confirm when you are ready to go.',
-  };
 }
 
 function readDraftFromSessionStorage() {
@@ -420,14 +474,41 @@ function CoordinateMarker({
   tone: 'pickup' | 'dropoff' | 'driver' | 'current';
   label: string;
 }) {
-  const classes =
-    tone === 'pickup'
-      ? 'bg-primary'
-      : tone === 'dropoff'
-        ? 'bg-secondary'
-        : tone === 'current'
-          ? 'bg-sky-400'
-          : 'bg-chart-2';
+  if (tone === 'pickup' || tone === 'dropoff') {
+    const isPickup = tone === 'pickup';
+
+    return (
+      <MapMarker longitude={longitude} latitude={latitude}>
+        <MarkerContent>
+          <div className="relative flex flex-col items-center">
+            <div
+              className={cn(
+                'absolute -inset-3 rounded-full blur-md',
+                isPickup ? 'bg-primary/18' : 'bg-accent/28'
+              )}
+            />
+            <div
+              className={cn(
+                'relative flex h-11 w-11 items-center justify-center rounded-full border-4 border-background shadow-xl',
+                isPickup ? 'bg-primary text-primary-foreground' : 'bg-accent text-accent-foreground'
+              )}
+            >
+              <MapPin className={cn('h-5 w-5', isPickup ? 'fill-primary-foreground' : 'fill-accent-foreground')} />
+            </div>
+            <span
+              className={cn(
+                'relative mt-1 h-2.5 w-2.5 rounded-full border-2 border-background shadow',
+                isPickup ? 'bg-primary' : 'bg-accent'
+              )}
+            />
+          </div>
+        </MarkerContent>
+        <MarkerTooltip>{label}</MarkerTooltip>
+      </MapMarker>
+    );
+  }
+
+  const classes = tone === 'current' ? 'bg-sky-400' : 'bg-chart-2';
 
   return (
     <MapMarker longitude={longitude} latitude={latitude}>
@@ -439,6 +520,82 @@ function CoordinateMarker({
       </MarkerContent>
       <MarkerTooltip>{label}</MarkerTooltip>
     </MapMarker>
+  );
+}
+
+function MapChromeButton({
+  label,
+  children,
+  onClick,
+  pressed = false,
+  disabled = false,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  onClick: () => void;
+  pressed?: boolean;
+  disabled?: boolean;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={pressed}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        'pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/94 text-primary shadow-[0_12px_32px_-18px_rgba(15,31,22,0.65)] backdrop-blur-xl transition-colors duration-200 hover:bg-primary/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
+        pressed && 'bg-primary text-primary-foreground hover:bg-primary',
+        className
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function RideOptionCard({
+  option,
+  selected,
+  onSelect,
+}: {
+  option: (typeof RIDE_OPTIONS)[number];
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onSelect}
+      className={cn(
+        'relative min-h-[4.6rem] overflow-hidden rounded-[1rem] border bg-card px-2.5 py-2 text-left shadow-sm transition-colors duration-200 hover:border-primary/35 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        selected
+          ? 'border-primary bg-primary/[0.04] shadow-[0_3px_0_var(--accent)]'
+          : 'border-border/65'
+      )}
+    >
+      {selected ? (
+        <span className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <Check className="h-3.5 w-3.5" />
+        </span>
+      ) : null}
+      <span className="relative block h-7 w-full">
+        <Image
+          src={option.imageSrc}
+          alt=""
+          fill
+          sizes="96px"
+          className="object-contain object-left"
+        />
+      </span>
+      <span className="mt-1 block truncate text-xs font-semibold leading-tight">{option.title}</span>
+      <span className="mt-0.5 block truncate text-[9px] font-medium leading-tight text-muted-foreground">
+        {option.subtitle}
+      </span>
+    </button>
   );
 }
 
@@ -460,6 +617,10 @@ export default function OnDemandBookingPage() {
   const [isResolvingDropoffStreet, setIsResolvingDropoffStreet] = useState(false);
   const [activeRide, setActiveRide] = useState<PassengerActiveRide | null>(null);
   const [activeRideRouteCoordinates, setActiveRideRouteCoordinates] = useState<[number, number][]>([]);
+  const [nearestTerminal, setNearestTerminal] = useState<TODATerminal | null>(null);
+  const [nearestTerminalDistance, setNearestTerminalDistance] = useState<number | null>(null);
+  const [isLoadingTerminal, setIsLoadingTerminal] = useState(false);
+  const [terminalContextError, setTerminalContextError] = useState<string | null>(null);
   const [quote, setQuote] = useState<{
     totalFare: number;
     distanceKm: number;
@@ -474,7 +635,12 @@ export default function OnDemandBookingPage() {
   const [error, setError] = useState<string | null>(null);
   const [rideHandoff, setRideHandoff] = useState<RideHandoffState>(null);
   const [initialUserCenter, setInitialUserCenter] = useState<[number, number] | null>(null);
+  const [focusedSearchField, setFocusedSearchField] = useState<SearchFocus>(null);
+  const [selectedRideOption, setSelectedRideOption] = useState<RideOptionKey>('regular');
+  const [mapTheme, setMapTheme] = useState<'light' | 'dark'>('light');
+  const [isLocating, setIsLocating] = useState(false);
   const isLoadingRideRef = useRef(false);
+  const terminalLoadingRef = useRef(false);
   const autoQuoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastQuotedRouteKeyRef = useRef<string | null>(null);
   const pickupLookupKeyRef = useRef<string | null>(null);
@@ -514,11 +680,22 @@ export default function OnDemandBookingPage() {
   const activeRideDirectRouteKey = activeRideDirectRouteCoordinates.length >= 2
     ? buildRoadRouteRequestKey(activeRideDirectRouteCoordinates)
     : '';
-  const displayedActiveRideRouteCoordinates =
-    activeRideRouteCoordinates.length >= 2 ? activeRideRouteCoordinates : activeRideDirectRouteCoordinates;
+  const displayedActiveRideRouteCoordinates = activeRideRouteCoordinates;
   const displayedActiveRideRouteKey = displayedActiveRideRouteCoordinates.length >= 2
     ? buildRoadRouteRequestKey(displayedActiveRideRouteCoordinates)
     : '';
+  const pickupSearchBias = useMemo(
+    () => userLocation,
+    [userLocation]
+  );
+  const dropoffSearchBias = useMemo(
+    () => pickup ?? userLocation,
+    [pickup, userLocation]
+  );
+  const terminalLookupPoint = useMemo(
+    () => pickup ?? userLocation,
+    [pickup, userLocation]
+  );
 
   const resolveStreetLabel = useCallback(async (point: { latitude: number; longitude: number }) => {
     const query = new URLSearchParams({
@@ -531,8 +708,14 @@ export default function OnDemandBookingPage() {
     return payload.label?.trim() ?? null;
   }, []);
 
-  const searchAddress = useCallback(async (query: string) => {
-    const response = await fetch(`/api/geocode/search?q=${encodeURIComponent(query)}`, { cache: 'no-store' });
+  const searchAddress = useCallback(async (query: string, bias: SearchBias | null) => {
+    const params = new URLSearchParams({ q: query });
+    if (bias) {
+      params.set('latitude', bias.latitude.toString());
+      params.set('longitude', bias.longitude.toString());
+    }
+
+    const response = await fetch(`/api/geocode/search?${params.toString()}`, { cache: 'no-store' });
     if (!response.ok) throw new Error('Address search is currently unavailable.');
     const payload = (await response.json()) as { results?: GeocodeSearchResult[] };
     return payload.results ?? [];
@@ -563,11 +746,11 @@ export default function OnDemandBookingPage() {
         setActiveRideRouteCoordinates(
           Array.isArray(payload.coordinates) && payload.coordinates.length >= 2
             ? payload.coordinates
-            : activeRideDirectRouteCoordinates
+            : []
         );
       } catch {
         if (!cancelled) {
-          setActiveRideRouteCoordinates(activeRideDirectRouteCoordinates);
+          setActiveRideRouteCoordinates([]);
         }
       }
     };
@@ -609,9 +792,64 @@ export default function OnDemandBookingPage() {
     }
   }, [canBook, router]);
 
+  const loadNearestTerminal = useCallback(async () => {
+    if (!canBook || !terminalLookupPoint || terminalLoadingRef.current) return;
+
+    terminalLoadingRef.current = true;
+    setIsLoadingTerminal(true);
+
+    try {
+      const response = await getTodaTerminals({
+        latitude: terminalLookupPoint.latitude,
+        longitude: terminalLookupPoint.longitude,
+      });
+
+      if (response.terminals.length === 0) {
+        setNearestTerminal(null);
+        setNearestTerminalDistance(null);
+        setTerminalContextError(null);
+        return;
+      }
+
+      const nearest = response.terminals
+        .map((terminal) => ({
+          terminal,
+          distanceKm: haversineKm(terminalLookupPoint, {
+            latitude: terminal.latitude,
+            longitude: terminal.longitude,
+          }),
+        }))
+        .sort((left, right) => left.distanceKm - right.distanceKm)[0];
+
+      setNearestTerminal(nearest.terminal);
+      setNearestTerminalDistance(nearest.distanceKm);
+      setTerminalContextError(null);
+    } catch (err) {
+      console.error('Failed to load passenger terminal context:', err);
+      setNearestTerminal(null);
+      setNearestTerminalDistance(null);
+      setTerminalContextError('Terminal info is updating. You may still book a ride.');
+    } finally {
+      terminalLoadingRef.current = false;
+      setIsLoadingTerminal(false);
+    }
+  }, [canBook, terminalLookupPoint]);
+
   useEffect(() => {
     void loadActiveRide();
   }, [loadActiveRide]);
+
+  useEffect(() => {
+    if (activeRide || !terminalLookupPoint) {
+      setNearestTerminal(null);
+      setNearestTerminalDistance(null);
+      setTerminalContextError(null);
+      setIsLoadingTerminal(false);
+      return;
+    }
+
+    void loadNearestTerminal();
+  }, [activeRide, loadNearestTerminal, terminalLookupPoint]);
 
   useEffect(() => {
     if (activeRide) previousRideStatusRef.current = activeRide.status;
@@ -656,6 +894,7 @@ export default function OnDemandBookingPage() {
     enabled: Boolean(canBook),
     onUpdate: (payload) => {
       if (payload.type === 'ride.updated') void loadActiveRide();
+      if (payload.type === 'terminal.updated') void loadNearestTerminal();
     },
   });
 
@@ -682,11 +921,13 @@ export default function OnDemandBookingPage() {
       if (!pickup) {
         setPickup(point);
         setPickupStreetLabel(null);
+        setFocusedSearchField('dropoff');
         setIsResolvingPickupStreet(false);
         pickupLookupKeyRef.current = null;
       } else {
         setDropoff(point);
         setDropoffStreetLabel(null);
+        setFocusedSearchField(null);
         setIsResolvingDropoffStreet(false);
         dropoffLookupKeyRef.current = null;
       }
@@ -707,6 +948,7 @@ export default function OnDemandBookingPage() {
     setPickup({ latitude: userLocation.latitude, longitude: userLocation.longitude });
     setPickupStreetLabel(null);
     setPickupQuery('Current location');
+    setFocusedSearchField('dropoff');
     setIsResolvingPickupStreet(false);
     pickupLookupKeyRef.current = null;
     setQuote(null);
@@ -753,7 +995,8 @@ export default function OnDemandBookingPage() {
     if (!mapInstance) return;
 
     const timeout = window.setTimeout(() => {
-      const bottomPadding = activeRide ? 300 : sheetExpanded ? 230 : 130;
+      const topPadding = activeRide ? 120 : 230;
+      const bottomPadding = activeRide ? 300 : 360;
 
       if (activeRide) {
         const activeRideBounds: [number, number][] =
@@ -768,7 +1011,7 @@ export default function OnDemandBookingPage() {
           getBoundsFromCoordinates(activeRideBounds),
           {
             padding: {
-              top: 120,
+              top: topPadding,
               right: 32,
               left: 32,
               bottom: bottomPadding,
@@ -786,7 +1029,7 @@ export default function OnDemandBookingPage() {
         if (quote?.routeCoordinates && quote.routeCoordinates.length >= 2) {
           mapInstance.fitBounds(getBoundsFromCoordinates(quote.routeCoordinates), {
             padding: {
-              top: 120,
+              top: topPadding,
               right: 24,
               left: 24,
               bottom: bottomPadding,
@@ -813,7 +1056,7 @@ export default function OnDemandBookingPage() {
           ],
           {
             padding: {
-              top: 120,
+              top: topPadding,
               right: 24,
               left: 24,
               bottom: bottomPadding,
@@ -889,7 +1132,7 @@ export default function OnDemandBookingPage() {
           if (!cancelled) setIsResolvingPickupStreet(false);
         }
       })();
-    }, 250);
+    }, SEARCH_DEBOUNCE_MS);
     return () => {
       cancelled = true;
       clearTimeout(timer);
@@ -917,7 +1160,7 @@ export default function OnDemandBookingPage() {
           if (!cancelled) setIsResolvingDropoffStreet(false);
         }
       })();
-    }, 250);
+    }, SEARCH_DEBOUNCE_MS);
     return () => {
       cancelled = true;
       clearTimeout(timer);
@@ -929,6 +1172,7 @@ export default function OnDemandBookingPage() {
     setPickupStreetLabel(result.label);
     setPickupSuggestions([]);
     setPickupQuery(result.label);
+    setFocusedSearchField('dropoff');
     setSheetExpanded(true);
     setQuote(null);
     setError(null);
@@ -942,6 +1186,7 @@ export default function OnDemandBookingPage() {
     setDropoffStreetLabel(result.label);
     setDropoffSuggestions([]);
     setDropoffQuery(result.label);
+    setFocusedSearchField(null);
     setSheetExpanded(true);
     setQuote(null);
     setError(null);
@@ -995,7 +1240,7 @@ export default function OnDemandBookingPage() {
     const timer = setTimeout(() => {
       void (async () => {
         try {
-          const results = await searchAddress(query);
+          const results = await searchAddress(query, pickupSearchBias);
           if (!cancelled) setPickupSuggestions(results);
         } catch {
           if (!cancelled) setPickupSuggestions([]);
@@ -1008,7 +1253,7 @@ export default function OnDemandBookingPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [activeRide, pickupQuery, searchAddress, userLocation]);
+  }, [activeRide, pickupQuery, pickupSearchBias, searchAddress, userLocation]);
 
   useEffect(() => {
     if (activeRide) return;
@@ -1023,7 +1268,7 @@ export default function OnDemandBookingPage() {
     const timer = setTimeout(() => {
       void (async () => {
         try {
-          const results = await searchAddress(query);
+          const results = await searchAddress(query, dropoffSearchBias);
           if (!cancelled) setDropoffSuggestions(results);
         } catch {
           if (!cancelled) setDropoffSuggestions([]);
@@ -1036,7 +1281,7 @@ export default function OnDemandBookingPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [activeRide, dropoffQuery, searchAddress]);
+  }, [activeRide, dropoffQuery, dropoffSearchBias, searchAddress]);
 
   const getQuote = useCallback(
     async (options?: { force?: boolean }) => {
@@ -1069,8 +1314,11 @@ export default function OnDemandBookingPage() {
         setError(
           isServiceIssue
             ? 'Quote service is temporarily unavailable. Check connection or retry in a few moments.'
-            : message
+            : formatQuoteErrorMessage(message)
         );
+        if (/ROUTING_RESTRICTED|ROUTING_EMPTY|restricted or private road|No public road route/i.test(message)) {
+          setFocusedSearchField('dropoff');
+        }
       } finally {
         setIsQuoting(false);
       }
@@ -1110,6 +1358,7 @@ export default function OnDemandBookingPage() {
     setDropoffStreetLabel(null);
     setPickupQuery('');
     setDropoffQuery('');
+    setFocusedSearchField(null);
     setPickupSuggestions([]);
     setDropoffSuggestions([]);
     setIsSearchingPickup(false);
@@ -1166,6 +1415,56 @@ export default function OnDemandBookingPage() {
     }
   };
 
+  const centerMapOnPoint = useCallback(
+    (point: { latitude: number; longitude: number }, zoom = 15.5) => {
+      mapInstance?.flyTo({
+        center: [point.longitude, point.latitude],
+        zoom,
+        duration: 700,
+      });
+    },
+    [mapInstance]
+  );
+
+  const handleLocateMap = useCallback(() => {
+    if (userLocation) {
+      centerMapOnPoint(userLocation);
+      return;
+    }
+
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const point = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+        setInitialUserCenter([point.longitude, point.latitude]);
+        centerMapOnPoint(point);
+        setIsLocating(false);
+      },
+      () => {
+        setIsLocating(false);
+      }
+    );
+  }, [centerMapOnPoint, userLocation]);
+
+  const handleToggleFullscreen = useCallback(() => {
+    const container = mapInstance?.getContainer();
+    if (!container) return;
+
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+      return;
+    }
+
+    void container.requestFullscreen();
+  }, [mapInstance]);
+
   if (!currentUser || currentUser.role !== 'passenger' || loadingActiveRide) {
     return <OnDemandLoadingSkeleton />;
   }
@@ -1178,22 +1477,19 @@ export default function OnDemandBookingPage() {
       : activeRide
         ? [activeRide.pickupLongitude, activeRide.pickupLatitude]
         : bookingMapCenter;
-  const draftCopy = getDraftCopy({
-    pickup: Boolean(pickup),
-    dropoff: Boolean(dropoff),
-    quote: Boolean(quote),
-    isBooking,
-  });
   const isSheetOpen = sheetExpanded;
-  const showCompactDraftSheet = !activeRide && !isSheetOpen;
-  const pickupPreviewText =
-    pickupQuery.trim() ||
-    pickupStreetLabel ||
-    (pickup ? 'Pinned pickup selected' : 'Use current location or search pickup');
-  const destinationPreviewText =
-    dropoffQuery.trim() ||
-    dropoffStreetLabel ||
-    (dropoff ? 'Destination selected' : 'Where are you going?');
+  const terminalName = nearestTerminal?.name ?? (terminalLookupPoint ? 'Finding nearest TODA' : 'Set pickup first');
+  const terminalDescription =
+    nearestTerminal?.location ??
+    (terminalContextError
+      ? 'Terminal details are temporarily unavailable.'
+      : terminalLookupPoint
+        ? 'Terminal info is updating.'
+        : 'Choose a pickup to assign a terminal.');
+  const queueValue = nearestTerminal ? nearestTerminal.currentQueued : isLoadingTerminal ? '...' : '-';
+  const tricyclesAvailable = nearestTerminal ? Math.max(nearestTerminal.capacity - nearestTerminal.currentQueued, 0) : null;
+  const availableValue = tricyclesAvailable ?? (isLoadingTerminal ? '...' : '-');
+  const etaValue = quote ? `${quote.estimatedDurationMin} min` : formatEtaFromDistance(nearestTerminalDistance);
   const primaryDraftActionLabel = !pickup
     ? 'Set pickup'
     : !dropoff
@@ -1204,7 +1500,60 @@ export default function OnDemandBookingPage() {
           ? 'Preparing fare...'
           : isBooking
             ? 'Sending ride request...'
-            : 'Confirm Ride';
+            : 'Book Tricycle';
+  const routeStatusTitle = error
+    ? getBookingErrorTitle(error)
+    : !pickup
+      ? 'Set pickup'
+      : !dropoff
+        ? 'Set destination'
+        : isQuoting
+          ? 'Calculating fare'
+          : quote
+            ? 'Route ready'
+            : 'Preparing fare';
+  const routeStatusDescription = error
+    ? 'Adjust the pickup or drop-off to continue.'
+    : !pickup
+      ? 'Use your current location or search a pickup point.'
+      : !dropoff
+        ? 'Add your destination to prepare fare and dispatch details.'
+        : isQuoting
+          ? 'Checking the road route, ETA, and latest fare.'
+          : quote
+            ? `${quote.distanceKm} km route with ${quote.estimatedDurationMin} min ETA.`
+            : 'Fare appears when the route is ready.';
+  const ctaHelperText =
+    primaryDraftActionLabel === 'Book Tricycle' && quote
+      ? `${formatPeso(quote.totalFare)} estimated fare`
+      : primaryDraftActionLabel;
+  const collapsedRouteSummary = error
+    ? 'Adjust the route to continue.'
+    : quote
+      ? `${formatPeso(quote.totalFare)} fare - ${quote.estimatedDurationMin} min ETA`
+      : isQuoting
+        ? 'Calculating fare and ETA.'
+        : !dropoff
+          ? 'Add destination from the route card.'
+          : 'Fare appears when the route is ready.';
+  const draftBookingFooter = (
+    <div className="space-y-2">
+      <Button
+        className="h-14 w-full rounded-[1rem] bg-primary text-base font-semibold text-primary-foreground shadow-[0_4px_0_var(--accent)] hover:bg-primary/95"
+        onClick={() => void confirmBooking()}
+        disabled={!pickup || !dropoff || !quote || isBooking || isQuoting}
+      >
+        <Bike className="mr-2 h-5 w-5" />
+        {isBooking ? 'Sending ride...' : 'Book Tricycle'}
+        <ChevronRight className="ml-auto h-5 w-5" />
+      </Button>
+      <div className="flex items-center justify-center gap-3">
+        <p className="text-center text-xs text-muted-foreground">
+          {ctaHelperText}
+        </p>
+      </div>
+    </div>
+  );
 
   return (
     <PassengerAppShell
@@ -1222,10 +1571,10 @@ export default function OnDemandBookingPage() {
             ref={(instance) => setMapInstance(instance)}
             center={activeRide ? activeRideMapCenter : bookingMapCenter}
             zoom={13}
+            theme={mapTheme}
             className="absolute inset-0 z-0 h-full w-full bg-muted/20"
             attributionControl={false}
           >
-            <MapControls position="top-right" showZoom showLocate showFullscreen />
             {activeRide ? (
               <>
                 {userLocation ? (
@@ -1288,6 +1637,81 @@ export default function OnDemandBookingPage() {
           <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-background/25 to-transparent" />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-36 bg-gradient-to-t from-background/85 via-background/28 to-transparent" />
 
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-30">
+            <div className="relative mx-auto w-full max-w-screen-sm px-4 pt-[calc(0.85rem+env(safe-area-inset-top))]">
+              <div className="flex justify-center">
+                <div className="pointer-events-auto rounded-full border border-border/60 bg-card/94 px-7 py-3 text-sm font-semibold text-primary shadow-[0_12px_32px_-20px_rgba(15,31,22,0.7)] backdrop-blur-xl">
+                  Book Ride
+                </div>
+              </div>
+
+              <div className="absolute right-4 top-[calc(0.85rem+env(safe-area-inset-top))] flex flex-col gap-3">
+                <MapChromeButton
+                  label="Find my location"
+                  onClick={handleLocateMap}
+                  disabled={isLocating}
+                >
+                  <Locate className="h-5 w-5" />
+                </MapChromeButton>
+                <MapChromeButton
+                  label="Toggle map layer"
+                  onClick={() => setMapTheme((current) => (current === 'light' ? 'dark' : 'light'))}
+                  pressed={mapTheme === 'dark'}
+                >
+                  <Layers className="h-5 w-5" />
+                </MapChromeButton>
+                <MapChromeButton label="Toggle fullscreen map" onClick={handleToggleFullscreen}>
+                  <Maximize className="h-5 w-5" />
+                </MapChromeButton>
+              </div>
+
+              {!activeRide ? (
+                <div className="pointer-events-auto mr-16 mt-3 overflow-hidden rounded-[1.65rem] border border-border/60 bg-card/94 px-4 py-2 shadow-[0_22px_70px_-45px_rgba(15,31,22,0.75)] backdrop-blur-2xl sm:mr-20">
+                  <div className="flex items-center justify-between gap-3 border-b border-border/55 py-2">
+                    <p className="text-xs font-semibold text-muted-foreground">Route</p>
+                    {pickup || dropoff ? (
+                      <button
+                        type="button"
+                        onClick={resetPins}
+                        disabled={isQuoting || isBooking}
+                        className="text-xs font-semibold text-primary transition-colors hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Clear route
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <SearchField
+                    value={pickupQuery.trim() || pickupStreetLabel || (pickup ? 'Current location' : '')}
+                    onChange={handlePickupQueryChange}
+                    onFocus={() => setFocusedSearchField('pickup')}
+                    placeholder={userLocation ? 'Current location' : 'Search pickup'}
+                    searching={!userLocation && focusedSearchField === 'pickup' && isSearchingPickup}
+                    suggestions={focusedSearchField === 'pickup' && !userLocation ? pickupSuggestions : []}
+                    onSelect={applyPickupSuggestion}
+                    icon={<CircleDot className="h-5 w-5" />}
+                    iconToneClassName="bg-primary/10 text-primary"
+                    readOnly={Boolean(userLocation)}
+                  />
+
+                  <div className="border-t border-border/55">
+                    <SearchField
+                      value={dropoffQuery}
+                      onChange={handleDropoffQueryChange}
+                      onFocus={() => setFocusedSearchField('dropoff')}
+                      placeholder="Where are you going?"
+                      searching={focusedSearchField === 'dropoff' && isSearchingDropoff}
+                      suggestions={focusedSearchField === 'dropoff' ? dropoffSuggestions : []}
+                      onSelect={applyDropoffSuggestion}
+                      icon={<MapPin className="h-5 w-5 fill-accent" />}
+                      iconToneClassName="bg-accent/20 text-accent-foreground"
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 mx-auto w-full max-w-screen-sm px-3">
             <ActiveBookingSheetShell
               ariaLabel={activeRide ? 'Active ride details' : 'Book a ride'}
@@ -1299,8 +1723,8 @@ export default function OnDemandBookingPage() {
                       ? ACTIVE_BOOKING_SHEET_COLLAPSED_HEIGHT
                       : COLLAPSED_SEARCHING_RIDE_HEIGHT
                   : isSheetOpen
-                    ? 'min(78dvh, 42rem)'
-                    : 'calc(10.25rem + 6.85rem + env(safe-area-inset-bottom))'
+                    ? DRAFT_BOOKING_SHEET_HEIGHT
+                    : DRAFT_BOOKING_SHEET_COLLAPSED_HEIGHT
               }
               maxHeight={activeRide && isSheetOpen ? ACTIVE_BOOKING_SHEET_EXPANDED_MAX_HEIGHT : undefined}
             >
@@ -1311,33 +1735,7 @@ export default function OnDemandBookingPage() {
                 collapsedLabel={activeRide ? 'Expand active ride sheet' : 'Expand booking sheet'}
               />
 
-              {showCompactDraftSheet ? (
-                <div className="px-4 pb-[calc(6.1rem+env(safe-area-inset-bottom))] pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setSheetExpanded(true)}
-                    className="w-full text-left transition"
-                    aria-label="Expand booking sheet"
-                  >
-                    <div className="flex items-start gap-3 border-b border-border/45 py-3.5">
-                      <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                        <MapPin className="h-4 w-4" />
-                      </div>
-                      <p className="line-clamp-2 min-h-[2.6rem] min-w-0 flex-1 text-sm font-medium leading-snug">
-                        {pickupPreviewText}
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-3 py-3.5">
-                      <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-secondary/10 text-secondary">
-                        <Navigation className="h-4 w-4" />
-                      </div>
-                      <p className="line-clamp-2 min-h-[2.6rem] min-w-0 flex-1 text-sm font-medium leading-snug">
-                        {destinationPreviewText}
-                      </p>
-                    </div>
-                  </button>
-                </div>
-              ) : activeRide && !isSheetOpen ? (
+              {activeRide && !isSheetOpen ? (
                 <ActiveBookingSheetLayout active={false}>
                   <ActiveBookingSheetBody active={false} className="pb-3 pt-1">
                     <button
@@ -1382,9 +1780,43 @@ export default function OnDemandBookingPage() {
                     </Button>
                   </ActiveBookingSheetFooter>
                 </ActiveBookingSheetLayout>
+              ) : !activeRide && !isSheetOpen ? (
+                <ActiveBookingSheetLayout active={false}>
+                  <ActiveBookingSheetBody active={false} className="px-3.5 pb-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setSheetExpanded(true)}
+                      className="w-full text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      aria-label="Expand booking sheet"
+                    >
+                      <div className="rounded-[1.15rem] border border-border/65 bg-card px-3 py-2 shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <Sparkles className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-medium text-muted-foreground">Booking status</p>
+                            <p className="truncate text-base font-semibold leading-tight">{routeStatusTitle}</p>
+                            <p className="mt-0.5 truncate text-xs text-muted-foreground">{collapsedRouteSummary}</p>
+                          </div>
+                          {quote ? (
+                            <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                              {formatPeso(quote.totalFare)}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </button>
+                  </ActiveBookingSheetBody>
+
+                  <ActiveBookingSheetFooter>{draftBookingFooter}</ActiveBookingSheetFooter>
+                </ActiveBookingSheetLayout>
               ) : (
                 <ActiveBookingSheetLayout active={Boolean(activeRide)}>
-                  <ActiveBookingSheetBody active={Boolean(activeRide)}>
+                  <ActiveBookingSheetBody
+                    active={Boolean(activeRide)}
+                    className={!activeRide ? 'px-3.5 pb-3 pt-1' : undefined}
+                  >
                     {rideHandoff ? (
                       <div className="mt-2 rounded-[1.4rem] border border-primary/20 bg-primary/8 px-4 py-3 text-sm text-muted-foreground">
                         {rideHandoff === 'cancelled'
@@ -1394,62 +1826,126 @@ export default function OnDemandBookingPage() {
                     ) : null}
 
                     {!activeRide ? (
-                      <div className="mt-3 space-y-4">
-                        <div className="space-y-2">
-                          <h2 className="text-xl font-semibold tracking-tight">{draftCopy.title}</h2>
-                          <p className="text-sm text-muted-foreground">{draftCopy.subtitle}</p>
-                        </div>
-
-                        <div className="space-y-3 border-t border-border/45 pt-2">
-                          <SearchField
-                            value={pickupQuery.trim() || pickupStreetLabel || (pickup ? 'Current location' : '')}
-                            onChange={handlePickupQueryChange}
-                            onFocus={() => setSheetExpanded(true)}
-                            placeholder={userLocation ? 'Current location' : 'Search pickup'}
-                            searching={!userLocation && isSearchingPickup}
-                            suggestions={userLocation ? [] : pickupSuggestions}
-                            onSelect={applyPickupSuggestion}
-                            icon={<MapPin className="h-4 w-4" />}
-                            iconToneClassName="bg-primary/10 text-primary"
-                            readOnly={Boolean(userLocation)}
-                          />
-
-                          <div className="border-t border-border/45 pt-3">
-                            <SearchField
-                              value={dropoffQuery}
-                              onChange={handleDropoffQueryChange}
-                              onFocus={() => setSheetExpanded(true)}
-                              placeholder="Where are you going?"
-                              searching={isSearchingDropoff}
-                              suggestions={dropoffSuggestions}
-                              onSelect={applyDropoffSuggestion}
-                              icon={<Navigation className="h-4 w-4" />}
-                              iconToneClassName="bg-secondary/10 text-secondary"
-                            />
-                          </div>
-                        </div>
-
-                        {quote ? (
-                          <div className="space-y-3 border-t border-primary/18 pt-4">
-                            <div className="flex items-center gap-2">
-                              <Sparkles className="h-4 w-4 text-primary" />
-                              <p className="text-sm font-semibold">Route ready</p>
+                      <div className="space-y-3">
+                        <div className="rounded-[1.15rem] border border-primary/15 bg-primary/[0.055] px-3.5 py-2.5">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-medium text-muted-foreground">Booking status</p>
+                              <h2 className="mt-0.5 truncate text-base font-semibold leading-tight">{routeStatusTitle}</h2>
+                              <p className="mt-1 text-xs leading-snug text-muted-foreground">{routeStatusDescription}</p>
                             </div>
-                            <div className="grid grid-cols-3 gap-2 text-xs">
+                            {quote ? (
+                              <div className="shrink-0 rounded-full bg-card px-3 py-1.5 text-sm font-semibold text-primary shadow-sm">
+                                {formatPeso(quote.totalFare)}
+                              </div>
+                            ) : (
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                <Sparkles className="h-4 w-4" />
+                              </div>
+                            )}
+                          </div>
+
+                          {quote ? (
+                            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                               <PassengerMetricPill label="Distance" value={`${quote.distanceKm} km`} />
-                              <PassengerMetricPill label="ETA" value={`${quote.estimatedDurationMin} min`} />
                               <PassengerMetricPill label="Fare" value={formatPeso(quote.totalFare)} />
                             </div>
-                          </div>
-                        ) : pickup && dropoff ? (
-                          <div className="border-t border-border/45 pt-3 text-sm text-muted-foreground">
-                            {isQuoting
-                              ? 'Calculating fare and travel time...'
-                              : 'Fare and travel time appear here as soon as the route is ready.'}
-                          </div>
-                        ) : null}
+                          ) : null}
 
-                        {error ? <InlineErrorState message={error} onRetry={() => void getQuote({ force: true })} /> : null}
+                          {error ? (
+                            <InlineErrorState
+                              title={getBookingErrorTitle(error)}
+                              message={error}
+                              onRetry={() => void getQuote({ force: true })}
+                              className="mt-3"
+                            />
+                          ) : null}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => router.push('/passenger/toda')}
+                          className="w-full rounded-[1.15rem] border border-border/65 bg-card text-left transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                          <span className="flex items-center gap-3 px-3 py-2.5">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.9rem] bg-primary/10 text-primary">
+                              <MapPin className="h-4 w-4" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[11px] font-medium text-muted-foreground">
+                                Assigned Terminal
+                              </span>
+                              <span className="block truncate text-base font-semibold leading-tight">
+                                {terminalName}
+                              </span>
+                              <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                                {terminalDescription}
+                              </span>
+                            </span>
+                            <ChevronDown className="h-5 w-5 shrink-0 text-primary" />
+                          </span>
+
+                          <span className="grid grid-cols-3 divide-x divide-border/60 border-t border-border/60">
+                            <span className="flex min-w-0 items-center gap-2 px-2.5 py-2">
+                              <span className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary min-[390px]:flex">
+                                <UsersRound className="h-3.5 w-3.5" />
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block truncate text-[9px] font-medium text-muted-foreground">
+                                  Queue
+                                </span>
+                                <span className="block text-lg font-semibold leading-none">{queueValue}</span>
+                              </span>
+                            </span>
+
+                            <span className="flex min-w-0 items-center gap-2 px-2.5 py-2">
+                              <span className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-primary text-primary min-[390px]:flex">
+                                <Clock3 className="h-3.5 w-3.5" />
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block truncate text-[9px] font-medium text-muted-foreground">
+                                  ETA
+                                </span>
+                                <span className="block truncate text-base font-semibold leading-none">{etaValue}</span>
+                              </span>
+                            </span>
+
+                            <span className="flex min-w-0 items-center gap-2 px-2.5 py-2">
+                              <span className="relative hidden h-8 w-9 shrink-0 min-[390px]:block">
+                                <Image
+                                  src="/mobile-landing-hero-tricycle.png"
+                                  alt=""
+                                  fill
+                                  sizes="36px"
+                                  className="object-contain"
+                                />
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block truncate text-[9px] font-medium text-muted-foreground">
+                                  Available
+                                </span>
+                                <span className="block text-lg font-semibold leading-none">{availableValue}</span>
+                              </span>
+                            </span>
+                          </span>
+                        </button>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          {RIDE_OPTIONS.map((option) => (
+                            <RideOptionCard
+                              key={option.key}
+                              option={option}
+                              selected={selectedRideOption === option.key}
+                              onSelect={() => setSelectedRideOption(option.key)}
+                            />
+                          ))}
+                        </div>
+
+                        {terminalContextError ? (
+                          <p className="rounded-[1rem] bg-muted/55 px-3 py-2 text-xs text-muted-foreground">
+                            {terminalContextError}
+                          </p>
+                        ) : null}
                       </div>
                     ) : (
                       <div className="mt-4 space-y-5">
@@ -1526,23 +2022,7 @@ export default function OnDemandBookingPage() {
 
                   <ActiveBookingSheetFooter>
                     {!activeRide ? (
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={resetPins}
-                          disabled={isQuoting || isBooking || (!pickup && !dropoff)}
-                          className="h-12 rounded-full px-5"
-                        >
-                          Reset
-                        </Button>
-                        <Button
-                          className="h-12 flex-1 rounded-full bg-primary text-base font-semibold"
-                          onClick={() => void confirmBooking()}
-                          disabled={!pickup || !dropoff || !quote || isBooking || isQuoting}
-                        >
-                          {primaryDraftActionLabel}
-                        </Button>
-                      </div>
+                      draftBookingFooter
                     ) : (
                       <Button
                         variant="outline"

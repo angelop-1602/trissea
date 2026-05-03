@@ -2,6 +2,10 @@ import { getPrisma } from '@/lib/prisma';
 import { getPSGCLGUByCode, resolveProvinceCodeByName } from '@/lib/psgc';
 import { BookingError } from '@/lib/booking/errors';
 
+const TENANT_RESOLUTION_SELECT = {
+  id: true,
+} as const;
+
 interface NominatimReverseResponse {
   address?: Record<string, string | undefined>;
 }
@@ -25,6 +29,7 @@ export async function resolveTenantByProvinceCode(provinceCode: string) {
   const prisma = getPrisma();
   return prisma.tenant.findFirst({
     where: { provinceCode },
+    select: TENANT_RESOLUTION_SELECT,
   });
 }
 
@@ -38,6 +43,7 @@ export async function resolveTenantByDriverLguCode(lguCode: string) {
 
   const exactTenant = await prisma.tenant.findUnique({
     where: { lguCode: selectedLgu.code },
+    select: TENANT_RESOLUTION_SELECT,
   });
 
   if (exactTenant) {
@@ -53,6 +59,7 @@ export async function resolveTenantByDriverLguCode(lguCode: string) {
         lguType: 'province',
         lguCode: selectedLgu.provinceCode,
       },
+      select: TENANT_RESOLUTION_SELECT,
     });
   }
 
