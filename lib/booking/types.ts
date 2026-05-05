@@ -34,6 +34,19 @@ export interface QuoteInput {
   dropoffLabel?: string;
 }
 
+export interface OnDemandRouteAdjustment {
+  original: LatLng;
+  adjusted: LatLng;
+  movedMeters: number;
+}
+
+export interface OnDemandRouteAdjustments {
+  pickupChanged: boolean;
+  dropoffChanged: boolean;
+  pickup?: OnDemandRouteAdjustment;
+  dropoff?: OnDemandRouteAdjustment;
+}
+
 export interface FareBreakdown {
   baseFare: number;
   perKmFare: number;
@@ -95,6 +108,7 @@ export interface ApiError {
 export interface OnDemandQuoteResult {
   fare: FareBreakdown;
   routeCoordinates: [number, number][];
+  routeAdjustments?: OnDemandRouteAdjustments;
 }
 
 export interface DriverPresenceInput {

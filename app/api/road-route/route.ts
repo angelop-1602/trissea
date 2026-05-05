@@ -5,6 +5,7 @@ import {
   parseRouteCoordinates,
   resolveRoadRoute,
   RoadRouteError,
+  type RoadRouteAdjustments,
   type RoadRouteProvider,
   type RouteCoordinate,
 } from '@/lib/routing/road-route';
@@ -13,6 +14,7 @@ const CACHE_TTL_MS = 30_000;
 
 type RouteCacheEntry = {
   coordinates: RouteCoordinate[];
+  adjustments?: RoadRouteAdjustments;
   provider: RoadRouteProvider;
   expiresAt: number;
 };
@@ -67,7 +69,7 @@ export async function GET(request: NextRequest) {
   const cached = roadRouteCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
     return NextResponse.json(
-      { coordinates: cached.coordinates },
+      { coordinates: cached.coordinates, adjustments: cached.adjustments },
       {
         headers: {
           'x-cache': 'hit',
@@ -82,12 +84,13 @@ export async function GET(request: NextRequest) {
 
     roadRouteCache.set(cacheKey, {
       coordinates: route.coordinates,
+      adjustments: route.adjustments,
       provider: route.provider,
       expiresAt: Date.now() + CACHE_TTL_MS,
     });
 
     return NextResponse.json(
-      { coordinates: route.coordinates },
+      { coordinates: route.coordinates, adjustments: route.adjustments },
       {
         headers: {
           'x-cache': 'miss',

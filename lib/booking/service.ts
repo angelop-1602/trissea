@@ -19,11 +19,12 @@ import {
   type DriverPresenceInput,
   type FareBreakdown,
   type OnDemandQuoteResult,
+  type OnDemandRouteAdjustments,
   type QuoteInput,
   type RideFeedbackInput,
   type RideTransitionAction,
 } from '@/lib/booking/types';
-import { resolveRoadRoute, RoadRouteError } from '@/lib/routing/road-route';
+import { resolveRoadRoute, RoadRouteError, type RoadRouteAdjustments, type RouteCoordinate } from '@/lib/routing/road-route';
 
 type DriverPresenceCandidate = {
   driverId: string;
@@ -41,6 +42,9 @@ type PrismaDbClient = Prisma.TransactionClient | ReturnType<typeof getPrisma>;
 type OnDemandQuoteContext = {
   fare: FareBreakdown;
   routeCoordinates: [number, number][];
+  pickup: QuoteInput['pickup'];
+  dropoff: QuoteInput['dropoff'];
+  routeAdjustments?: OnDemandRouteAdjustments;
   terminalId: string;
 };
 
@@ -408,17 +412,57 @@ function ensureRole(role: UserRole, expected: UserRole) {
   }
 }
 
+function routeCoordinateToLatLng([longitude, latitude]: RouteCoordinate) {
+  return { latitude, longitude };
+}
+
+function toOnDemandRouteAdjustments(adjustments: RoadRouteAdjustments | undefined): OnDemandRouteAdjustments | undefined {
+  if (!adjustments) {
+    return undefined;
+  }
+
+  const pickup = adjustments.pickup
+    ? {
+        original: routeCoordinateToLatLng(adjustments.pickup.original),
+        adjusted: routeCoordinateToLatLng(adjustments.pickup.adjusted),
+        movedMeters: adjustments.pickup.movedMeters,
+      }
+    : undefined;
+  const dropoff = adjustments.dropoff
+    ? {
+        original: routeCoordinateToLatLng(adjustments.dropoff.original),
+        adjusted: routeCoordinateToLatLng(adjustments.dropoff.adjusted),
+        movedMeters: adjustments.dropoff.movedMeters,
+      }
+    : undefined;
+
+  if (!pickup && !dropoff) {
+    return undefined;
+  }
+
+  return {
+    pickupChanged: Boolean(pickup),
+    dropoffChanged: Boolean(dropoff),
+    ...(pickup ? { pickup } : {}),
+    ...(dropoff ? { dropoff } : {}),
+  };
+}
+
 async function fetchRoadRoute(pickup: QuoteInput['pickup'], dropoff: QuoteInput['dropoff']) {
   try {
     const route = await resolveRoadRoute([
       [pickup.longitude, pickup.latitude],
       [dropoff.longitude, dropoff.latitude],
     ]);
+    const routeAdjustments = toOnDemandRouteAdjustments(route.adjustments);
 
     return {
       routeCoordinates: route.coordinates,
       distanceKm: route.distanceKm,
       estimatedDurationMin: route.estimatedDurationMin,
+      pickup: routeAdjustments?.pickup?.adjusted ?? pickup,
+      dropoff: routeAdjustments?.dropoff?.adjusted ?? dropoff,
+      routeAdjustments,
     };
   } catch (error) {
     if (error instanceof RoadRouteError) {
@@ -461,10 +505,8 @@ async function buildOnDemandQuoteContext(
   tenantId: string,
   prisma: PrismaDbClient = getPrisma()
 ): Promise<OnDemandQuoteContext> {
-  const [route, fareContext] = await Promise.all([
-    fetchRoadRoute(input.pickup, input.dropoff),
-    resolveTenantOnDemandFareContext(prisma, tenantId, input.pickup),
-  ]);
+  const route = await fetchRoadRoute(input.pickup, input.dropoff);
+  const fareContext = await resolveTenantOnDemandFareContext(prisma, tenantId, route.pickup);
 
   return {
     fare: calculateFare(
@@ -474,6 +516,9 @@ async function buildOnDemandQuoteContext(
       fareContext.terminalAdjustment
     ),
     routeCoordinates: route.routeCoordinates,
+    pickup: route.pickup,
+    dropoff: route.dropoff,
+    routeAdjustments: route.routeAdjustments,
     terminalId: fareContext.terminalId,
   };
 }
@@ -657,6 +702,7 @@ export async function quoteOnDemandRide(input: QuoteInput, _tenantId: string): P
   return {
     fare: route.fare,
     routeCoordinates: route.routeCoordinates,
+    routeAdjustments: route.routeAdjustments,
   };
 }
 
@@ -767,10 +813,10 @@ export async function createOnDemandRide(input: QuoteInput, passengerUser: Booki
       terminalId: quote.terminalId,
       pickupLocation: input.pickupLabel ?? 'Pinned pickup',
       dropoffLocation: input.dropoffLabel ?? 'Pinned dropoff',
-      pickupLatitude: input.pickup.latitude,
-      pickupLongitude: input.pickup.longitude,
-      dropoffLatitude: input.dropoff.latitude,
-      dropoffLongitude: input.dropoff.longitude,
+      pickupLatitude: quote.pickup.latitude,
+      pickupLongitude: quote.pickup.longitude,
+      dropoffLatitude: quote.dropoff.latitude,
+      dropoffLongitude: quote.dropoff.longitude,
       status: 'searching',
       fare: quote.fare.totalFare,
       distance: quote.fare.distanceKm,

@@ -59,6 +59,13 @@ test('passenger on-demand moves route clearing to the search card', () => {
   assert.match(source, /onClick=\{resetPins\}/);
 });
 
+test('passenger on-demand shows adjusted accessible road feedback when route repair succeeds', () => {
+  assert.match(source, /getAccessibleRoadAdjustmentNote/);
+  assert.match(source, /Moved to nearest accessible road|moved to nearest accessible road/);
+  assert.match(source, /response\.routeAdjustments\?\.pickup/);
+  assert.match(source, /response\.routeAdjustments\?\.dropoff/);
+});
+
 test('passenger on-demand keeps only the right-side locate control', () => {
   assert.doesNotMatch(source, /Center map on your location/);
   assert.match(source, /Find my location/);

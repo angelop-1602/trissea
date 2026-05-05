@@ -1,5 +1,10 @@
 import type { Reservation, Ride, RideFeedback, TODATerminal } from '@prisma/client';
-import type { QuoteInput, RideFeedbackInput, RideTransitionAction } from '@/lib/booking/types';
+import type {
+  OnDemandRouteAdjustments,
+  QuoteInput,
+  RideFeedbackInput,
+  RideTransitionAction,
+} from '@/lib/booking/types';
 
 function createRequestId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -56,6 +61,7 @@ export function quoteOnDemand(input: QuoteInput) {
       terminalAdjustment: number;
     };
     routeCoordinates: [number, number][];
+    routeAdjustments?: OnDemandRouteAdjustments;
   }>(
     '/api/bookings/on-demand/quote',
     {

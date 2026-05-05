@@ -4,11 +4,25 @@ export type RoadRouteProvider = 'graphhopper' | 'osrm';
 
 export type RoadRouteErrorCode = 'ROUTING_UNAVAILABLE' | 'ROUTING_EMPTY' | 'ROUTING_RESTRICTED';
 
+export interface RoadRouteAdjustment {
+  original: RouteCoordinate;
+  adjusted: RouteCoordinate;
+  movedMeters: number;
+}
+
+export interface RoadRouteAdjustments {
+  pickupChanged: boolean;
+  dropoffChanged: boolean;
+  pickup?: RoadRouteAdjustment;
+  dropoff?: RoadRouteAdjustment;
+}
+
 export interface RoadRouteResult {
   coordinates: RouteCoordinate[];
   distanceKm: number;
   estimatedDurationMin: number;
   provider: RoadRouteProvider;
+  adjustments?: RoadRouteAdjustments;
 }
 
 export class RoadRouteError extends Error {
@@ -27,6 +41,9 @@ type RoutingProviderSetting = 'auto' | 'graphhopper' | 'osrm';
 
 interface GraphHopperRouteResponse {
   message?: string;
+  snapped_waypoints?: {
+    coordinates?: RouteCoordinate[];
+  };
   paths?: Array<{
     distance?: number;
     time?: number;
@@ -55,6 +72,9 @@ const DEFAULT_OSRM_ROUTE_URL = 'https://router.project-osrm.org/route/v1/driving
 const RESTRICTED_ROAD_ACCESS_VALUES = new Set(['no', 'private']);
 const DEFAULT_DISALLOWED_ROAD_CLASSES = ['track', 'path', 'footway', 'pedestrian', 'steps'];
 const DEFAULT_MAX_DISALLOWED_ROAD_CLASS_METERS = 30;
+const DEFAULT_ACCESSIBLE_ROAD_MAX_ADJUSTMENT_METERS = 150;
+const DEFAULT_ACCESSIBLE_ROAD_REPAIR_ATTEMPTS = 120;
+const REPAIR_BEARINGS_DEGREES = [0, 45, 90, 135, 180, 225, 270, 315];
 
 function readEnv(key: string) {
   return process.env[key]?.trim() ?? '';
@@ -136,10 +156,14 @@ export function buildRoadRouteCacheKey(coordinates: RouteCoordinate[]) {
   const resolvedProvider = provider === 'auto' ? (isGraphHopperRoutingConfigured() ? 'graphhopper' : 'osrm') : provider;
   const disallowedClasses = readDisallowedRoadClasses().join(',');
   const maxDisallowedMeters = readMaxDisallowedRoadClassMeters();
+  const repairMaxMeters = readAccessibleRoadMaxAdjustmentMeters();
+  const repairAttempts = readAccessibleRoadRepairAttemptLimit();
   return coordinates
     .map(([longitude, latitude]) => `${longitude.toFixed(5)},${latitude.toFixed(5)}`)
     .join(';')
-    .concat(`|provider=${resolvedProvider}|classes=${disallowedClasses}|max=${maxDisallowedMeters}`);
+    .concat(
+      `|provider=${resolvedProvider}|classes=${disallowedClasses}|max=${maxDisallowedMeters}|repair=${repairMaxMeters}|repairAttempts=${repairAttempts}`
+    );
 }
 
 function coordinatesToOsrmPath(coordinates: RouteCoordinate[]) {
@@ -158,6 +182,20 @@ function readDisallowedRoadClasses() {
 
 function readMaxDisallowedRoadClassMeters() {
   return readNumberEnv('ROUTING_MAX_DISALLOWED_ROAD_CLASS_METERS', DEFAULT_MAX_DISALLOWED_ROAD_CLASS_METERS);
+}
+
+function readAccessibleRoadMaxAdjustmentMeters() {
+  return readNumberEnv(
+    'ROUTING_ACCESSIBLE_ROAD_MAX_ADJUSTMENT_METERS',
+    DEFAULT_ACCESSIBLE_ROAD_MAX_ADJUSTMENT_METERS
+  );
+}
+
+function readAccessibleRoadRepairAttemptLimit() {
+  return Math.max(
+    0,
+    Math.floor(readNumberEnv('ROUTING_ACCESSIBLE_ROAD_REPAIR_ATTEMPTS', DEFAULT_ACCESSIBLE_ROAD_REPAIR_ATTEMPTS))
+  );
 }
 
 function getRouteSegmentDistanceMeters(coordinates: RouteCoordinate[], startIndex: number, endIndex: number) {
@@ -194,6 +232,168 @@ function getCoordinateDistanceMeters(left: RouteCoordinate, right: RouteCoordina
   const normalized = Math.min(1, Math.max(0, haversine));
 
   return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(normalized), Math.sqrt(1 - normalized));
+}
+
+function offsetCoordinate([longitude, latitude]: RouteCoordinate, distanceMeters: number, bearingDegrees: number): RouteCoordinate {
+  const earthRadiusMeters = 6_371_000;
+  const angularDistance = distanceMeters / earthRadiusMeters;
+  const bearing = (bearingDegrees * Math.PI) / 180;
+  const latitudeRadians = (latitude * Math.PI) / 180;
+  const longitudeRadians = (longitude * Math.PI) / 180;
+
+  const adjustedLatitude = Math.asin(
+    Math.sin(latitudeRadians) * Math.cos(angularDistance) +
+      Math.cos(latitudeRadians) * Math.sin(angularDistance) * Math.cos(bearing)
+  );
+  const adjustedLongitude =
+    longitudeRadians +
+    Math.atan2(
+      Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(latitudeRadians),
+      Math.cos(angularDistance) - Math.sin(latitudeRadians) * Math.sin(adjustedLatitude)
+    );
+
+  return [
+    Number((((adjustedLongitude * 180) / Math.PI + 540) % 360 - 180).toFixed(7)),
+    Number(((adjustedLatitude * 180) / Math.PI).toFixed(7)),
+  ];
+}
+
+function routeCoordinateKey([longitude, latitude]: RouteCoordinate) {
+  return `${longitude.toFixed(7)},${latitude.toFixed(7)}`;
+}
+
+function getRepairRadiiMeters(maxMeters: number) {
+  const radii = [25, 50, 75, 100, maxMeters]
+    .filter((value, index, values) => value > 0 && value <= maxMeters && values.indexOf(value) === index)
+    .sort((left, right) => left - right);
+
+  return radii;
+}
+
+function buildEndpointRepairCandidates(point: RouteCoordinate, maxMeters: number) {
+  const candidates: Array<{ coordinate: RouteCoordinate; movedMeters: number }> = [
+    { coordinate: point, movedMeters: 0 },
+  ];
+  const seen = new Set([routeCoordinateKey(point)]);
+
+  for (const radius of getRepairRadiiMeters(maxMeters)) {
+    for (const bearing of REPAIR_BEARINGS_DEGREES) {
+      const coordinate = offsetCoordinate(point, radius, bearing);
+      const key = routeCoordinateKey(coordinate);
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      candidates.push({
+        coordinate,
+        movedMeters: Number(getCoordinateDistanceMeters(point, coordinate).toFixed(1)),
+      });
+    }
+  }
+
+  return candidates.sort((left, right) => left.movedMeters - right.movedMeters);
+}
+
+function buildRouteRepairRequests(coordinates: RouteCoordinate[], maxMeters: number, attemptLimit: number) {
+  if (coordinates.length < 2 || maxMeters <= 0 || attemptLimit <= 0) {
+    return [];
+  }
+
+  const pickupIndex = 0;
+  const dropoffIndex = coordinates.length - 1;
+  const pickupCandidates = buildEndpointRepairCandidates(coordinates[pickupIndex], maxMeters);
+  const dropoffCandidates = buildEndpointRepairCandidates(coordinates[dropoffIndex], maxMeters);
+  const requests: Array<{ coordinates: RouteCoordinate[]; movedMeters: number }> = [];
+  const seen = new Set<string>();
+
+  for (const pickupCandidate of pickupCandidates) {
+    for (const dropoffCandidate of dropoffCandidates) {
+      if (pickupCandidate.movedMeters === 0 && dropoffCandidate.movedMeters === 0) {
+        continue;
+      }
+
+      const adjusted = [...coordinates];
+      adjusted[pickupIndex] = pickupCandidate.coordinate;
+      adjusted[dropoffIndex] = dropoffCandidate.coordinate;
+      const key = adjusted.map(routeCoordinateKey).join(';');
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      requests.push({
+        coordinates: adjusted,
+        movedMeters: pickupCandidate.movedMeters + dropoffCandidate.movedMeters,
+      });
+    }
+  }
+
+  return requests
+    .sort((left, right) => left.movedMeters - right.movedMeters)
+    .slice(0, attemptLimit);
+}
+
+function getEndpointCoordinate(coordinates: RouteCoordinate[] | undefined, endpoint: 'pickup' | 'dropoff') {
+  if (!coordinates || coordinates.length === 0) {
+    return null;
+  }
+
+  return endpoint === 'pickup' ? coordinates[0] ?? null : coordinates[coordinates.length - 1] ?? null;
+}
+
+function buildAdjustment(
+  original: RouteCoordinate,
+  adjusted: RouteCoordinate | null
+): RoadRouteAdjustment | undefined {
+  if (!adjusted) {
+    return undefined;
+  }
+
+  const movedMeters = Number(getCoordinateDistanceMeters(original, adjusted).toFixed(1));
+  if (movedMeters < 1) {
+    return undefined;
+  }
+
+  return {
+    original,
+    adjusted,
+    movedMeters,
+  };
+}
+
+function buildRoadRouteAdjustments({
+  originalCoordinates,
+  requestedCoordinates,
+  snappedCoordinates,
+}: {
+  originalCoordinates: RouteCoordinate[];
+  requestedCoordinates: RouteCoordinate[];
+  snappedCoordinates?: RouteCoordinate[];
+}): RoadRouteAdjustments | undefined {
+  const pickup = buildAdjustment(
+    originalCoordinates[0],
+    getEndpointCoordinate(snappedCoordinates, 'pickup') ?? getEndpointCoordinate(requestedCoordinates, 'pickup')
+  );
+  const dropoff = buildAdjustment(
+    originalCoordinates[originalCoordinates.length - 1],
+    getEndpointCoordinate(snappedCoordinates, 'dropoff') ?? getEndpointCoordinate(requestedCoordinates, 'dropoff')
+  );
+
+  if (!pickup && !dropoff) {
+    return undefined;
+  }
+
+  return {
+    pickupChanged: Boolean(pickup),
+    dropoffChanged: Boolean(dropoff),
+    ...(pickup ? { pickup } : {}),
+    ...(dropoff ? { dropoff } : {}),
+  };
+}
+
+function getAdjustmentTotalMeters(adjustments: RoadRouteAdjustments | undefined) {
+  return (adjustments?.pickup?.movedMeters ?? 0) + (adjustments?.dropoff?.movedMeters ?? 0);
 }
 
 function getRestrictedRoadClassValues(path: NonNullable<GraphHopperRouteResponse['paths']>[number]) {
@@ -257,7 +457,13 @@ function getRestrictedRoadAccessValues(path: NonNullable<GraphHopperRouteRespons
   return [...restricted];
 }
 
-function readGraphHopperPath(response: GraphHopperRouteResponse) {
+function readGraphHopperPath(
+  response: GraphHopperRouteResponse,
+  adjustmentContext?: {
+    originalCoordinates: RouteCoordinate[];
+    requestedCoordinates: RouteCoordinate[];
+  }
+) {
   const path = response.paths?.[0];
   if (!path) {
     throw new RoadRouteError(response.message ?? 'No public road route was found for these points.', 502, 'ROUTING_EMPTY');
@@ -289,10 +495,22 @@ function readGraphHopperPath(response: GraphHopperRouteResponse) {
     distanceKm: Number(((path.distance ?? 0) / 1000).toFixed(2)),
     estimatedDurationMin: Math.max(1, Math.ceil((path.time ?? 0) / 60_000)),
     provider: 'graphhopper' as const,
+    ...(adjustmentContext
+      ? {
+          adjustments: buildRoadRouteAdjustments({
+            originalCoordinates: adjustmentContext.originalCoordinates,
+            requestedCoordinates: adjustmentContext.requestedCoordinates,
+            snappedCoordinates: response.snapped_waypoints?.coordinates,
+          }),
+        }
+      : {}),
   };
 }
 
-async function fetchGraphHopperRoadRoute(coordinates: RouteCoordinate[]): Promise<RoadRouteResult> {
+async function fetchGraphHopperRoadRoute(
+  coordinates: RouteCoordinate[],
+  adjustmentContext?: { originalCoordinates: RouteCoordinate[] }
+): Promise<RoadRouteResult> {
   if (!isGraphHopperRoutingConfigured()) {
     throw new RoadRouteError(
       'GraphHopper routing requires GRAPHHOPPER_API_KEY or GRAPHHOPPER_ROUTE_URL.',
@@ -345,7 +563,15 @@ async function fetchGraphHopperRoadRoute(coordinates: RouteCoordinate[]): Promis
   }
 
   try {
-    return readGraphHopperPath((await response.json()) as GraphHopperRouteResponse);
+    return readGraphHopperPath(
+      (await response.json()) as GraphHopperRouteResponse,
+      adjustmentContext
+        ? {
+            originalCoordinates: adjustmentContext.originalCoordinates,
+            requestedCoordinates: coordinates,
+          }
+        : undefined
+    );
   } catch (error) {
     if (error instanceof RoadRouteError) {
       throw error;
@@ -397,12 +623,40 @@ function shouldFallbackToOsrm() {
   return readEnv('ROUTING_ALLOW_OSRM_FALLBACK').toLowerCase() === 'true';
 }
 
+async function fetchRepairedGraphHopperRoadRoute(coordinates: RouteCoordinate[], originalError: RoadRouteError) {
+  const repairRequests = buildRouteRepairRequests(
+    coordinates,
+    readAccessibleRoadMaxAdjustmentMeters(),
+    readAccessibleRoadRepairAttemptLimit()
+  );
+
+  for (const request of repairRequests) {
+    try {
+      const route = await fetchGraphHopperRoadRoute(request.coordinates, {
+        originalCoordinates: coordinates,
+      });
+
+      if (getAdjustmentTotalMeters(route.adjustments) > 0) {
+        return route;
+      }
+    } catch (error) {
+      if (error instanceof RoadRouteError) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw originalError;
+}
+
 async function fetchGraphHopperWithOptionalFallback(coordinates: RouteCoordinate[]) {
   try {
     return await fetchGraphHopperRoadRoute(coordinates);
   } catch (error) {
     if (error instanceof RoadRouteError && error.code === 'ROUTING_RESTRICTED') {
-      throw error;
+      return fetchRepairedGraphHopperRoadRoute(coordinates, error);
     }
 
     if (shouldFallbackToOsrm()) {

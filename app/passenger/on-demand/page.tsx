@@ -61,6 +61,7 @@ import {
   quoteOnDemand,
   type PassengerActiveRide,
 } from '@/lib/booking/client';
+import type { OnDemandRouteAdjustments } from '@/lib/booking/types';
 import { useBookingRealtime } from '@/hooks/use-booking-realtime';
 import { useUserLocation } from '@/hooks/use-user-location';
 import { writeRideFeedbackPrompt } from '@/lib/ride-feedback-prompt';
@@ -115,6 +116,13 @@ type RideHandoffState = 'completed' | 'cancelled' | null;
 
 function markerLabel(point: { latitude: number; longitude: number }) {
   return `${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`;
+}
+
+function routeKeyForPoints(
+  pickup: { latitude: number; longitude: number },
+  dropoff: { latitude: number; longitude: number }
+) {
+  return `${pickup.latitude.toFixed(6)},${pickup.longitude.toFixed(6)}|${dropoff.latitude.toFixed(6)},${dropoff.longitude.toFixed(6)}`;
 }
 
 function getBoundsFromCoordinates(coordinates: [number, number][]) {
@@ -205,6 +213,26 @@ function getBookingErrorTitle(message: string) {
   return /public road|route uses a road|route for these points/i.test(message)
     ? 'Adjust route'
     : 'Something went wrong';
+}
+
+function getAccessibleRoadAdjustmentNote(adjustments?: OnDemandRouteAdjustments) {
+  if (!adjustments) {
+    return null;
+  }
+
+  if (adjustments.pickupChanged && adjustments.dropoffChanged) {
+    return 'Pickup and drop-off moved to nearest accessible road.';
+  }
+
+  if (adjustments.pickupChanged) {
+    return 'Pickup moved to nearest accessible road.';
+  }
+
+  if (adjustments.dropoffChanged) {
+    return 'Drop-off moved to nearest accessible road.';
+  }
+
+  return null;
 }
 
 function getRideSubtitle(ride: { status: PassengerActiveRide['status'] }) {
@@ -626,6 +654,7 @@ export default function OnDemandBookingPage() {
     distanceKm: number;
     estimatedDurationMin: number;
     routeCoordinates: [number, number][];
+    routeAdjustments?: OnDemandRouteAdjustments;
   } | null>(null);
   const [loadingActiveRide, setLoadingActiveRide] = useState(true);
   const [isQuoting, setIsQuoting] = useState(false);
@@ -1286,7 +1315,7 @@ export default function OnDemandBookingPage() {
   const getQuote = useCallback(
     async (options?: { force?: boolean }) => {
       if (!pickup || !dropoff) return;
-      const routeKey = `${pickup.latitude.toFixed(6)},${pickup.longitude.toFixed(6)}|${dropoff.latitude.toFixed(6)},${dropoff.longitude.toFixed(6)}`;
+      const routeKey = routeKeyForPoints(pickup, dropoff);
       if (!options?.force && lastQuotedRouteKeyRef.current === routeKey) return;
       setIsQuoting(true);
       setError(null);
@@ -1302,8 +1331,19 @@ export default function OnDemandBookingPage() {
           distanceKm: response.fare.distanceKm,
           estimatedDurationMin: response.fare.estimatedDurationMin,
           routeCoordinates: response.routeCoordinates,
+          routeAdjustments: response.routeAdjustments,
         });
-        lastQuotedRouteKeyRef.current = routeKey;
+        const adjustedPickup = response.routeAdjustments?.pickup?.adjusted ?? pickup;
+        const adjustedDropoff = response.routeAdjustments?.dropoff?.adjusted ?? dropoff;
+        if (response.routeAdjustments?.pickup) {
+          setPickup(adjustedPickup);
+          pickupLookupKeyRef.current = markerLabel(adjustedPickup);
+        }
+        if (response.routeAdjustments?.dropoff) {
+          setDropoff(adjustedDropoff);
+          dropoffLookupKeyRef.current = markerLabel(adjustedDropoff);
+        }
+        lastQuotedRouteKeyRef.current = routeKeyForPoints(adjustedPickup, adjustedDropoff);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to calculate quote.';
         const isServiceIssue =
@@ -1527,6 +1567,7 @@ export default function OnDemandBookingPage() {
     primaryDraftActionLabel === 'Book Tricycle' && quote
       ? `${formatPeso(quote.totalFare)} estimated fare`
       : primaryDraftActionLabel;
+  const accessibleRoadAdjustmentNote = getAccessibleRoadAdjustmentNote(quote?.routeAdjustments);
   const collapsedRouteSummary = error
     ? 'Adjust the route to continue.'
     : quote
@@ -1850,6 +1891,12 @@ export default function OnDemandBookingPage() {
                               <PassengerMetricPill label="Distance" value={`${quote.distanceKm} km`} />
                               <PassengerMetricPill label="Fare" value={formatPeso(quote.totalFare)} />
                             </div>
+                          ) : null}
+
+                          {accessibleRoadAdjustmentNote ? (
+                            <p className="mt-2 rounded-[0.85rem] bg-card/75 px-3 py-2 text-xs font-medium text-muted-foreground">
+                              {accessibleRoadAdjustmentNote}
+                            </p>
                           ) : null}
 
                           {error ? (

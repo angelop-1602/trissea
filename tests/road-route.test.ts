@@ -16,6 +16,31 @@ function restoreRuntime() {
   process.env = { ...originalEnv };
 }
 
+function distanceMeters(left: [number, number], right: [number, number]) {
+  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  const earthRadiusMeters = 6_371_000;
+  const latitudeDelta = toRadians(right[1] - left[1]);
+  const longitudeDelta = toRadians(right[0] - left[0]);
+  const leftLatitude = toRadians(left[1]);
+  const rightLatitude = toRadians(right[1]);
+  const haversine =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(leftLatitude) *
+      Math.cos(rightLatitude) *
+      Math.sin(longitudeDelta / 2) ** 2;
+
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+function readGraphHopperPoints(input: Parameters<typeof fetch>[0]) {
+  return new URL(String(input)).searchParams
+    .getAll('point')
+    .map((point) => {
+      const [latitude, longitude] = point.split(',').map(Number);
+      return [longitude, latitude] as [number, number];
+    });
+}
+
 test.afterEach(() => {
   restoreRuntime();
 });
@@ -38,7 +63,7 @@ test('road route cache key includes selected routing provider', () => {
       [121.72132, 17.615],
       [121.7268, 17.6136],
     ]),
-    '121.72132,17.61500;121.72680,17.61360|provider=graphhopper|classes=track,path,footway,pedestrian,steps|max=30'
+    '121.72132,17.61500;121.72680,17.61360|provider=graphhopper|classes=track,path,footway,pedestrian,steps|max=30|repair=150|repairAttempts=120'
   );
 });
 
@@ -52,13 +77,28 @@ test('road route cache key resolves auto provider to OSRM when GraphHopper is no
       [121.72132, 17.615],
       [121.7268, 17.6136],
     ]),
-    '121.72132,17.61500;121.72680,17.61360|provider=osrm|classes=track,path,footway,pedestrian,steps|max=30'
+    '121.72132,17.61500;121.72680,17.61360|provider=osrm|classes=track,path,footway,pedestrian,steps|max=30|repair=150|repairAttempts=120'
+  );
+});
+
+test('road route cache key includes accessible road repair settings', () => {
+  process.env.ROUTING_PROVIDER = 'graphhopper';
+  process.env.ROUTING_ACCESSIBLE_ROAD_MAX_ADJUSTMENT_METERS = '75';
+  process.env.ROUTING_ACCESSIBLE_ROAD_REPAIR_ATTEMPTS = '7';
+
+  assert.match(
+    buildRoadRouteCacheKey([
+      [121.72132, 17.615],
+      [121.7268, 17.6136],
+    ]),
+    /\|repair=75\|repairAttempts=7$/
   );
 });
 
 test('GraphHopper route rejects private road access details', async () => {
   process.env.ROUTING_PROVIDER = 'graphhopper';
   process.env.GRAPHHOPPER_ROUTE_URL = 'https://routing.example.test/route';
+  process.env.ROUTING_ACCESSIBLE_ROAD_REPAIR_ATTEMPTS = '0';
   globalThis.fetch = async () =>
     new Response(
       JSON.stringify({
@@ -91,6 +131,124 @@ test('GraphHopper route rejects private road access details', async () => {
       error.code === 'ROUTING_RESTRICTED' &&
       error.status === 422
   );
+});
+
+test('GraphHopper route repairs restricted endpoints to a nearby accessible road', async () => {
+  process.env.ROUTING_PROVIDER = 'graphhopper';
+  process.env.GRAPHHOPPER_ROUTE_URL = 'https://routing.example.test/route';
+  let callCount = 0;
+  globalThis.fetch = async () => {
+    callCount += 1;
+
+    if (callCount === 1) {
+      return new Response(
+        JSON.stringify({
+          paths: [
+            {
+              distance: 1000,
+              time: 120000,
+              points: {
+                coordinates: [
+                  [121.72, 17.61],
+                  [121.73, 17.62],
+                ],
+              },
+              details: {
+                road_access: [[0, 1, 'private']],
+              },
+            },
+          ],
+        }),
+        { status: 200 }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        snapped_waypoints: {
+          coordinates: [
+            [121.7202, 17.6102],
+            [121.73, 17.62],
+          ],
+        },
+        paths: [
+          {
+            distance: 980,
+            time: 90000,
+            points: {
+              coordinates: [
+                [121.7202, 17.6102],
+                [121.725, 17.615],
+                [121.73, 17.62],
+              ],
+            },
+            details: {
+              road_access: [[0, 2, 'yes']],
+            },
+          },
+        ],
+      }),
+      { status: 200 }
+    );
+  };
+
+  const route = await resolveRoadRoute([
+    [121.72, 17.61],
+    [121.73, 17.62],
+  ]);
+
+  assert.equal(route.provider, 'graphhopper');
+  assert.ok(callCount > 1);
+  assert.equal(route.adjustments?.pickupChanged, true);
+  assert.equal(route.adjustments?.dropoffChanged, false);
+  assert.deepEqual(route.adjustments?.pickup?.original, [121.72, 17.61]);
+  assert.deepEqual(route.adjustments?.pickup?.adjusted, [121.7202, 17.6102]);
+  assert.ok((route.adjustments?.pickup?.movedMeters ?? 0) > 0);
+  assert.equal(route.distanceKm, 0.98);
+  assert.equal(route.estimatedDurationMin, 2);
+});
+
+test('GraphHopper route repair keeps candidate points within the configured radius', async () => {
+  process.env.ROUTING_PROVIDER = 'graphhopper';
+  process.env.GRAPHHOPPER_ROUTE_URL = 'https://routing.example.test/route';
+  process.env.ROUTING_ACCESSIBLE_ROAD_REPAIR_ATTEMPTS = '12';
+  const originalPickup: [number, number] = [121.72, 17.61];
+  const originalDropoff: [number, number] = [121.73, 17.62];
+  const requestedPointPairs: [number, number][][] = [];
+
+  globalThis.fetch = async (input) => {
+    requestedPointPairs.push(readGraphHopperPoints(input));
+    return new Response(
+      JSON.stringify({
+        paths: [
+          {
+            distance: 1000,
+            time: 120000,
+            points: {
+              coordinates: [originalPickup, originalDropoff],
+            },
+            details: {
+              road_access: [[0, 1, 'private']],
+            },
+          },
+        ],
+      }),
+      { status: 200 }
+    );
+  };
+
+  await assert.rejects(
+    resolveRoadRoute([originalPickup, originalDropoff]),
+    (error) =>
+      error instanceof RoadRouteError &&
+      error.code === 'ROUTING_RESTRICTED' &&
+      error.status === 422
+  );
+
+  for (const [pickup, dropoff] of requestedPointPairs.slice(1)) {
+    assert.ok(distanceMeters(originalPickup, pickup) <= 151);
+    assert.ok(distanceMeters(originalDropoff, dropoff) <= 151);
+  }
 });
 
 test('GraphHopper provider can fall back to OSRM when routing is unreachable', async () => {
@@ -137,6 +295,7 @@ test('GraphHopper route rejects long disallowed road class segments', async () =
   process.env.GRAPHHOPPER_ROUTE_URL = 'https://routing.example.test/route';
   process.env.ROUTING_DISALLOWED_ROAD_CLASSES = 'service';
   process.env.ROUTING_MAX_DISALLOWED_ROAD_CLASS_METERS = '30';
+  process.env.ROUTING_ACCESSIBLE_ROAD_REPAIR_ATTEMPTS = '0';
   globalThis.fetch = async () =>
     new Response(
       JSON.stringify({
