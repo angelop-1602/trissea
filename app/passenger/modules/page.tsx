@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, BusFront, CarFront, Lock, MapPinned } from 'lucide-react';
+import { ArrowRight, BusFront, CarFront, Lock, MapPinned, Route } from 'lucide-react';
 import { PassengerAppShell } from '@/components/passenger/passenger-app-shell';
 import { Button } from '@/components/ui/button';
 import { useStore } from '@/lib/store-context';
@@ -15,6 +15,8 @@ function getModuleIcon(moduleKey: TenantTransportModuleSummary['moduleKey']) {
   switch (moduleKey) {
     case 'jeepney':
       return <BusFront className="h-5 w-5" />;
+    case 'p2p':
+      return <Route className="h-5 w-5" />;
     case 'tricycle':
     default:
       return <CarFront className="h-5 w-5" />;
@@ -133,7 +135,7 @@ export default function PassengerModulesPage() {
           <div className="space-y-1">
             <p className="text-sm font-medium text-foreground">Current rollout note</p>
             <p className="text-sm text-muted-foreground">
-              Tricycle stays fully live. Jeepney is visible only as a prepared module entry until its route, departure, and booking flows are implemented.
+              Tricycle stays fully live. Jeepney and P2P are visible as prepared module entries until their route, departure, and booking flows are implemented.
             </p>
           </div>
         </div>

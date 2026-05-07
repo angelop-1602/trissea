@@ -120,6 +120,14 @@ const DRIVER_HEADER_META: Array<{
     },
   },
   {
+    matchPaths: ['/driver/p2p'],
+    meta: {
+      title: 'P2P',
+      subtitle: 'The point-to-point driver workspace is being prepared as a separate module.',
+      topContext: 'P2P',
+    },
+  },
+  {
     matchPaths: ['/driver/toda'],
     meta: {
       title: 'Terminal Board',

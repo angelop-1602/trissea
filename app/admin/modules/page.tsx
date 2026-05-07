@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, BusFront, CarFront, Layers3 } from 'lucide-react';
+import { ArrowRight, BusFront, CarFront, Layers3, Route } from 'lucide-react';
 import { AppHeader } from '@/components/app-header';
 import { PageHeader } from '@/components/admin/page-header';
 import { TableSurface } from '@/components/admin/table-surface';
@@ -17,11 +17,15 @@ import {
 } from '@/lib/transport-modules';
 
 function getModuleIcon(moduleKey: TenantTransportModuleSummary['moduleKey']) {
-  return moduleKey === 'jeepney' || moduleKey === 'bus' ? (
-    <BusFront className="h-4 w-4" />
-  ) : (
-    <CarFront className="h-4 w-4" />
-  );
+  if (moduleKey === 'jeepney' || moduleKey === 'bus') {
+    return <BusFront className="h-4 w-4" />;
+  }
+
+  if (moduleKey === 'p2p') {
+    return <Route className="h-4 w-4" />;
+  }
+
+  return <CarFront className="h-4 w-4" />;
 }
 
 export default function AdminModulesPage() {
@@ -154,7 +158,7 @@ export default function AdminModulesPage() {
                   <Layers3 className="h-4 w-4" />
                 </span>
                 <p>
-                  Tricycle remains the live admin workspace. Jeepney now has a reserved module entry and route space, but the real route, stop, vehicle, departure, and manifest admin tools still need to be built as the next phase.
+                  Tricycle remains the live admin workspace. Jeepney and P2P now have reserved module entries and route space, but the real route, stop, vehicle, departure, and manifest admin tools still need to be built as the next phase.
                 </p>
               </div>
             </TableSurface>

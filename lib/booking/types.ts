@@ -12,7 +12,10 @@ export type RealtimeEventType =
   | 'ride.updated'
   | 'reservation.updated'
   | 'terminal.updated'
-  | 'presence.updated';
+  | 'presence.updated'
+  | 'p2p.corridor.updated'
+  | 'p2p.departure.updated'
+  | 'p2p.reservation.updated';
 
 export interface BookingEventPayload {
   type: RealtimeEventType;

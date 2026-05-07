@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, BusFront, CarFront, Clock3, Lock } from 'lucide-react';
+import { ArrowRight, BusFront, CarFront, Clock3, Lock, Route } from 'lucide-react';
 import { DriverAppShell } from '@/components/driver/driver-app-shell';
 import { Button } from '@/components/ui/button';
 import { useStore } from '@/lib/store-context';
@@ -15,6 +15,8 @@ function getModuleIcon(moduleKey: TenantTransportModuleSummary['moduleKey']) {
   switch (moduleKey) {
     case 'jeepney':
       return <BusFront className="h-5 w-5" />;
+    case 'p2p':
+      return <Route className="h-5 w-5" />;
     case 'tricycle':
     default:
       return <CarFront className="h-5 w-5" />;
@@ -133,7 +135,7 @@ export default function DriverModulesPage() {
           <div className="space-y-1">
             <p className="text-sm font-medium text-foreground">Current rollout note</p>
             <p className="text-sm text-muted-foreground">
-              Tricycle remains the only operational driver module. Jeepney is prepared as a separate workspace but its departures and manifest tools are not live yet.
+              Tricycle remains the only operational driver module. Jeepney and P2P are prepared as separate workspaces, but their departures and manifest tools are not live yet.
             </p>
           </div>
         </div>

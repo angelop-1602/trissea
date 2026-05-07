@@ -44,6 +44,84 @@ model Reservation {
   @@index([terminalId])
 }
 
+model P2PCorridor {
+  id                   String         @id
+  tenantId             String
+  code                 String
+  name                 String
+  summary              String?
+  originLabel          String
+  originLatitude       Float
+  originLongitude      Float
+  destinationLabel     String
+  destinationLatitude  Float
+  destinationLongitude Float
+  distanceKm           Float
+  estimatedDuration    Int
+  baseFare             Float
+  isActive             Boolean        @default(true)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  Departures           P2PDeparture[]
+  Tenant               Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive, createdAt])
+  @@map("P2PModuleCorridor")
+}
+
+model P2PDeparture {
+  id                String             @id
+  tenantId          String
+  corridorId        String
+  driverId          String?
+  vehicleLabel      String?
+  boardingBay       String
+  seatCapacity      Int
+  availableSeats    Int
+  departureTime     DateTime
+  status            P2PDepartureStatus @default(scheduled)
+  boardingStartedAt DateTime?
+  departedAt        DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  Corridor          P2PCorridor        @relation(fields: [corridorId], references: [id], onDelete: Cascade)
+  Driver            User?              @relation("P2PDeparture_driver", fields: [driverId], references: [id], onDelete: SetNull)
+  Reservations      P2PReservation[]
+  Tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, departureTime])
+  @@index([driverId, status, departureTime])
+  @@index([corridorId, departureTime])
+  @@map("P2PModuleDeparture")
+}
+
+model P2PReservation {
+  id               String               @id
+  tenantId         String
+  departureId      String
+  passengerId      String
+  seatCount        Int                  @default(1)
+  fareTotal        Float
+  bookingReference String
+  status           P2PReservationStatus @default(confirmed)
+  boardedAt        DateTime?
+  completedAt      DateTime?
+  cancelledAt      DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  Departure        P2PDeparture         @relation(fields: [departureId], references: [id], onDelete: Cascade)
+  Passenger        User                 @relation("P2PReservation_passenger", fields: [passengerId], references: [id], onDelete: Cascade)
+  Tenant           Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([departureId, passengerId])
+  @@index([tenantId, status, createdAt])
+  @@index([departureId, status])
+  @@index([passengerId, status, createdAt])
+  @@map("P2PModuleReservation")
+}
+
 model Ride {
   id                          String        @id
   tenantId                    String
@@ -149,6 +227,9 @@ model Tenant {
   driverForegroundColor String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+  P2PCorridors   P2PCorridor[]
+  P2PDepartures  P2PDeparture[]
+  P2PReservations P2PReservation[]
   Reservation    Reservation[]
   Ride           Ride[]
   Settings       TenantSettings?
@@ -219,6 +300,8 @@ model User {
   TenantAuditLogs             TenantAuditLog[]           @relation("TenantAuditLog_actorUser")
   DriverVerificationReviews   DriverVerificationReview[] @relation("DriverVerificationReview_reviewedByUser")
   InvitedTenantMemberships    TenantMembership[] @relation("TenantMembership_invitedByUser")
+  P2PDepartures               P2PDeparture[]             @relation("P2PDeparture_driver")
+  P2PReservations             P2PReservation[]           @relation("P2PReservation_passenger")
   Reservation                 Reservation[]
   Ride_Ride_driverIdToUser    Ride[]        @relation("Ride_driverIdToUser")
   Ride_Ride_passengerIdToUser Ride[]        @relation("Ride_passengerIdToUser")
@@ -494,6 +577,23 @@ enum TransportModuleKey {
   jeepney
   bus
   van
+  p2p
+}
+
+enum P2PDepartureStatus {
+  scheduled
+  boarding
+  departed
+  completed
+  cancelled
+}
+
+enum P2PReservationStatus {
+  confirmed
+  boarded
+  completed
+  cancelled
+  no_show
 }
 
 enum TenantStatus {

@@ -1,6 +1,6 @@
 import type { UserRole } from '@prisma/client';
 
-export const TRANSPORT_MODULE_KEYS = ['tricycle', 'jeepney', 'bus', 'van'] as const;
+export const TRANSPORT_MODULE_KEYS = ['tricycle', 'jeepney', 'bus', 'van', 'p2p'] as const;
 export type TransportModuleKeyValue = (typeof TRANSPORT_MODULE_KEYS)[number];
 export type TransportModuleRole = Exclude<UserRole, 'superadmin'>;
 
@@ -74,6 +74,17 @@ const TRANSPORT_MODULE_REGISTRY: Record<TransportModuleKeyValue, TransportModule
       admin: '/admin/modules',
     },
   },
+  p2p: {
+    key: 'p2p',
+    label: 'P2P',
+    summary: 'Point-to-point shuttle booking, dispatch, and departure workflows are prepared as a separate module.',
+    stage: 'planned',
+    roleRoutes: {
+      passenger: '/passenger/p2p',
+      driver: '/driver/p2p',
+      admin: '/admin/p2p',
+    },
+  },
 };
 
 export const DEFAULT_TENANT_TRANSPORT_MODULES: Array<{
@@ -105,6 +116,12 @@ export const DEFAULT_TENANT_TRANSPORT_MODULES: Array<{
     isEnabled: false,
     isDefault: false,
     sortOrder: 3,
+  },
+  {
+    moduleKey: 'p2p',
+    isEnabled: false,
+    isDefault: false,
+    sortOrder: 4,
   },
 ];
 

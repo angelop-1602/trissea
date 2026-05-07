@@ -1,0 +1,1 @@
+ALTER TYPE "TransportModuleKey" ADD VALUE IF NOT EXISTS 'p2p';

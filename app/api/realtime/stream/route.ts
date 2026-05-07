@@ -23,6 +23,9 @@ function toRealtimeType(table?: string): BookingEventPayload['type'] | null {
   if (table === 'Reservation') return 'reservation.updated';
   if (table === 'TODATerminal') return 'terminal.updated';
   if (table === 'DriverPresence') return 'presence.updated';
+  if (table === 'P2PModuleCorridor') return 'p2p.corridor.updated';
+  if (table === 'P2PModuleDeparture') return 'p2p.departure.updated';
+  if (table === 'P2PModuleReservation') return 'p2p.reservation.updated';
   return null;
 }
 
@@ -32,7 +35,7 @@ export async function GET(request: NextRequest) {
   try {
     const user = await requireBookingProfile(request);
     const actor = toBookingActor(user);
-    const tenantId = actor.role === 'passenger' ? null : requireActorTenantId(actor);
+    const tenantId = actor.role === 'passenger' ? actor.tenantId : requireActorTenantId(actor);
 
     const encoder = new TextEncoder();
 
@@ -75,8 +78,22 @@ export async function GET(request: NextRequest) {
                 (record?.old as Record<string, unknown> | undefined)?.passengerId ??
                 ''
             );
+            const payloadTenantId = String(
+              record?.tenantId ??
+                (record?.new as Record<string, unknown> | undefined)?.tenantId ??
+                (record?.old as Record<string, unknown> | undefined)?.tenantId ??
+                ''
+            );
 
-            if (passengerId !== actor.id) return;
+            if (
+              passengerId !== actor.id &&
+              !(
+                (payload.type === 'p2p.departure.updated' || payload.type === 'p2p.corridor.updated') &&
+                payloadTenantId === tenantId
+              )
+            ) {
+              return;
+            }
           } else if (payload.tenantId !== tenantId) {
             return;
           }
@@ -98,11 +115,23 @@ export async function GET(request: NextRequest) {
           const rowPassengerId = String(row.passengerId ?? '');
 
           if (actor.role === 'passenger') {
-            if (type !== 'ride.updated' && type !== 'reservation.updated') {
+            if (
+              type !== 'ride.updated' &&
+              type !== 'reservation.updated' &&
+              type !== 'p2p.departure.updated' &&
+              type !== 'p2p.corridor.updated' &&
+              type !== 'p2p.reservation.updated'
+            ) {
               return;
             }
 
-            if (rowPassengerId !== actor.id) {
+            if (
+              rowPassengerId !== actor.id &&
+              !(
+                (type === 'p2p.departure.updated' || type === 'p2p.corridor.updated') &&
+                rowTenantId === tenantId
+              )
+            ) {
               return;
             }
           } else if (rowTenantId !== tenantId) {
@@ -141,6 +170,21 @@ export async function GET(request: NextRequest) {
                 { event: '*', schema: 'public', table: 'Reservation', filter: `passengerId=eq.${actor.id}` },
                 onPostgresChange
               )
+              .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'P2PModuleReservation', filter: `passengerId=eq.${actor.id}` },
+                onPostgresChange
+              )
+              .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'P2PModuleDeparture', filter: `tenantId=eq.${tenantId}` },
+                onPostgresChange
+              )
+              .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'P2PModuleCorridor', filter: `tenantId=eq.${tenantId}` },
+                onPostgresChange
+              )
               .subscribe((status) => {
                 if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
                   sendRaw(': realtime-channel-error\n\n');
@@ -173,6 +217,21 @@ export async function GET(request: NextRequest) {
               .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'DriverPresence', filter: `tenantId=eq.${tenantId}` },
+                onPostgresChange
+              )
+              .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'P2PModuleDeparture', filter: `tenantId=eq.${tenantId}` },
+                onPostgresChange
+              )
+              .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'P2PModuleReservation', filter: `tenantId=eq.${tenantId}` },
+                onPostgresChange
+              )
+              .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'P2PModuleCorridor', filter: `tenantId=eq.${tenantId}` },
                 onPostgresChange
               )
               .subscribe((status) => {
